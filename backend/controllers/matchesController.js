@@ -44,6 +44,34 @@ async function runMatchingForLostItem(lostItemId) {
   return results.sort((a, b) => (b.overall_score || 0) - (a.overall_score || 0));
 }
 
+async function updateMatchStatus(req, res) {
+  const { status } = req.body || {};
+  const allowedStatuses = ['pending', 'confirmed', 'rejected'];
+
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({ success: false, message: 'status must be pending, confirmed, or rejected' });
+  }
+
+  try {
+    const match = await Match.findByIdAndUpdate(
+      req.params.matchId,
+      { match_status: status },
+      { new: true, runValidators: true }
+    );
+    if (!match) return res.status(404).json({ success: false, message: 'Match not found' });
+
+    if (status === 'confirmed') {
+      await LostItem.findByIdAndUpdate(match.lost_item, { status: 'resolved' });
+      await FoundItem.findByIdAndUpdate(match.found_item, { status: 'resolved' });
+    }
+
+    return res.json({ success: true, data: match });
+  } catch (error) {
+    console.error('Update match status error:', error.message);
+    return res.status(500).json({ success: false, message: 'Failed to update match status' });
+  }
+}
+
 async function runMatchingForFoundItem(foundItemId) {
   const foundItem = await FoundItem.findById(foundItemId);
   if (!foundItem || foundItem.status === 'resolved') {
@@ -140,6 +168,7 @@ module.exports = {
   getMatchesForLostItem,
   runMatchingForLostItem,
   runMatchingForFoundItem,
+  updateMatchStatus,
   runMatchesForLostItem,
   runMatchesForFoundItem,
 };

@@ -1,4 +1,4 @@
-const { getFollowUpQuestion } = require('../services/aiService');
+const { getFollowUpQuestion, checkAIHealth, AI_MODEL, AI_EMBEDDING_MODEL } = require('../services/aiService');
 
 async function followUpQuestion(req, res) {
   try {
@@ -31,4 +31,22 @@ async function followUpQuestion(req, res) {
   }
 }
 
-module.exports = { followUpQuestion };
+async function aiHealth(req, res) {
+  try {
+    const result = await checkAIHealth();
+    return res.status(result.success ? 200 : 503).json(result);
+  } catch (error) {
+    console.error('AI health check error:', error.message);
+    return res.status(503).json({
+      success: false,
+      provider: 'Featherless',
+      chatModel: AI_MODEL,
+      embeddingModel: AI_EMBEDDING_MODEL,
+      chatWorking: false,
+      embeddingsWorking: false,
+      message: 'Featherless API request failed',
+    });
+  }
+}
+
+module.exports = { followUpQuestion, aiHealth };

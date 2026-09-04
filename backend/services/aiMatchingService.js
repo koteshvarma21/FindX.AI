@@ -108,7 +108,8 @@ function getCategoryHint(value = '') {
   ];
 
   for (const [primary, alternates] of categories) {
-    if (Array.isArray(alternates) && alternates.some((word) => text.includes(word))) return primary;
+    const alternateWords = Array.isArray(alternates) ? alternates : [alternates];
+    if (alternateWords.some((word) => word && text.includes(word))) return primary;
     if (text.includes(primary)) return primary;
   }
 
@@ -144,15 +145,8 @@ function compareLocation(lostLocation = '', foundLocation = '') {
   if (!total) return 0;
 
   const base = Math.round((shared / total) * 100);
-  const importantWords = ['library', 'college', 'central', 'entrance', 'campus', 'near'];
-  const sharedImportant = importantWords.filter((word) => left.includes(word) && right.includes(word)).length;
-
   if (left.includes(right) || right.includes(left)) {
     return 90;
-  }
-
-  if (sharedImportant > 0) {
-    return Math.min(95, Math.max(80, base + 30));
   }
 
   return Math.min(95, Math.max(0, base));
@@ -180,10 +174,9 @@ async function computeSemanticSimilarity(descriptionA, descriptionB) {
   const leftTokens = new Set(tokenize(combinedA));
   const rightTokens = new Set(tokenize(combinedB));
   const sharedTokens = [...leftTokens].filter((token) => rightTokens.has(token));
-  const sharedImportant = sharedTokens.filter((token) => ['black', 'white', 'red', 'wildcraft', 'backpack', 'zipper', 'sticker', 'college'].includes(token)).length;
   const union = new Set([...leftTokens, ...rightTokens]);
   const lexicalScore = union.size === 0 ? 0 : sharedTokens.length / union.size;
-  const fallback = Math.min(100, Math.max(0, Math.round((lexicalScore * 100) + (sharedImportant * 9))));
+  const fallback = Math.min(100, Math.max(0, Math.round((lexicalScore * 100) + (sharedTokens.length * 5))));
 
   const embeddingA = await getEmbedding(combinedA);
   const embeddingB = await getEmbedding(combinedB);
@@ -197,13 +190,16 @@ async function computeSemanticSimilarity(descriptionA, descriptionB) {
 }
 
 function buildAiReason(result) {
-  if (result.overallScore >= MATCH_THRESHOLDS.strong) {
-    return 'Both reports describe the same item family, with similar colors, distinctive details, and closely related locations.';
-  }
-  if (result.overallScore >= MATCH_THRESHOLDS.possible) {
-    return 'The item shares several matching clues, but the details are not yet definitive enough to be a strong match.';
-  }
-  return 'The descriptions are too different in item type, color, or location to be considered a likely match.';
+  const reasons = [];
+  if (result.semanticScore >= 80) reasons.push('descriptions are highly similar');
+  else if (result.semanticScore >= 65) reasons.push('descriptions share several identifying details');
+  if (result.locationScore >= 80) reasons.push('locations are very close');
+  else if (result.locationScore >= 50) reasons.push('locations have meaningful overlap');
+  if (result.timeScore >= 80) reasons.push('the reports are close in time');
+  if (result.categoryScore >= 90) reasons.push('item categories match');
+
+  if (!reasons.length) return 'The reports have limited overlap in item details, location, and timing.';
+  return `${result.overallScore >= MATCH_THRESHOLDS.strong ? 'Strong match' : 'Possible match'} because ${reasons.join(', ')}.`;
 }
 
 async function scoreLostFoundMatch(lostItem = {}, foundItem = {}) {
@@ -215,16 +211,11 @@ async function scoreLostFoundMatch(lostItem = {}, foundItem = {}) {
   const timeScore = compareTime(lostItem.discovered_lost_at || lostItem.created_at, foundItem.found_at || foundItem.created_at);
   const categoryScore = compareCategory(lostItem, foundItem);
 
-  const weightedScore = Math.round(
+  const overallScore = Math.round(
     semanticScore * MATCHING_WEIGHTS.semantic +
       locationScore * MATCHING_WEIGHTS.location +
       timeScore * MATCHING_WEIGHTS.time +
       categoryScore * MATCHING_WEIGHTS.category
-  );
-
-  const overallScore = Math.max(
-    weightedScore,
-    semanticScore > 75 && locationScore > 70 && categoryScore > 70 ? 82 : weightedScore
   );
 
   const matchLevel =

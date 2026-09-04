@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const payload = {
       description: savedDescription,
+      ai_generated_image_url: sessionStorage.getItem('findx-final-image') || undefined,
       contact_email: email,
       last_seen_location: location,
       discovered_lost_at: discoveredLostAt || new Date().toISOString(),

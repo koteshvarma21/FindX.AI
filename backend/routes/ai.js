@@ -1,8 +1,9 @@
 const express = require('express');
-const { followUpQuestion } = require('../controllers/aiController');
+const { followUpQuestion, aiHealth } = require('../controllers/aiController');
 
 const router = express.Router();
 
 router.post('/follow-up', followUpQuestion);
+router.get('/health', aiHealth);
 
 module.exports = router;

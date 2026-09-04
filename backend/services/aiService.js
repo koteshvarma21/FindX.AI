@@ -1,5 +1,7 @@
 const AI_BASE_URL = process.env.AI_BASE_URL || 'https://api.featherless.ai/v1';
 const AI_API_KEY = process.env.AI_API_KEY;
+const AI_MODEL = process.env.AI_MODEL || 'Qwen/Qwen3-32B';
+const AI_EMBEDDING_MODEL = process.env.AI_EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B';
 
 function normalizeText(value = '') {
   return String(value || '')
@@ -92,7 +94,7 @@ async function callFeatherless(path, payload) {
 
     return await response.json();
   } catch (error) {
-    console.warn('Featherless request failed:', error.message);
+    console.error('Featherless request failed:', error.message);
     return null;
   }
 }
@@ -101,7 +103,7 @@ async function getEmbedding(text) {
   if (!text || !AI_API_KEY) return null;
 
   const data = await callFeatherless('/embeddings', {
-    model: process.env.AI_EMBEDDING_MODEL || 'nomic-embed-text-v1.5',
+    model: AI_EMBEDDING_MODEL,
     input: String(text),
   });
 
@@ -124,7 +126,7 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
 
   try {
     const payload = {
-      model: process.env.AI_MODEL || 'qwen/qwen3-32b',
+      model: AI_MODEL,
       messages: [
         {
           role: 'system',
@@ -184,9 +186,30 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
   }
 }
 
+async function checkAIHealth() {
+  const chatResponse = await callFeatherless('/chat/completions', {
+    model: AI_MODEL,
+    messages: [{ role: 'user', content: 'Reply with the word OK.' }],
+    max_tokens: 4,
+  });
+  const embedding = await getEmbedding('FindX health check');
+
+  return {
+    success: Boolean(chatResponse && embedding && embedding.length),
+    provider: 'Featherless',
+    chatModel: AI_MODEL,
+    embeddingModel: AI_EMBEDDING_MODEL,
+    chatWorking: Boolean(chatResponse),
+    embeddingsWorking: Boolean(embedding && embedding.length),
+  };
+}
+
 module.exports = {
   AI_BASE_URL,
+  AI_MODEL,
+  AI_EMBEDDING_MODEL,
   callFeatherless,
+  checkAIHealth,
   buildFallbackQuestion,
   extractKnownFacts,
   getEmbedding,

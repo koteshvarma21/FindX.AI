@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchRow = document.getElementById('match-row');
   const continueRow = document.getElementById('continue-row');
   const continueBtn = document.getElementById('continue-btn');
+  const skipImageBtn = document.getElementById('skip-image-btn');
   const chatInput = document.getElementById('chat-input');
   const chatSend = document.getElementById('chat-send');
 
@@ -48,6 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
     imageUrl: '',
     improvements: [],
     conversation: [],
+    extractedDetails: {
+      category: '',
+      color: '',
+      brand: '',
+      uniqueFeatures: [],
+    },
   };
 
   let answerHandler = null; // (text) => void — set by askQuestion()
@@ -92,6 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function askQuestion({ prompt, chips, placeholder, onAnswer }) {
     addMessage(prompt, 'ai');
+    state.conversation.push({ role: 'assistant', content: prompt });
+    state.conversation.push({ role: 'assistant', content: prompt });
     if (chips && chips.length) showChips(chips);
     if (placeholder) chatInput.placeholder = placeholder;
     answerHandler = onAnswer;
@@ -148,7 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
       }
       return body;
-    } catch (_error) {
+    } catch (error) {
+      console.error('AI follow-up request failed:', error.message);
       return null;
     }
   }
@@ -159,13 +169,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const parts = [state.itemName || 'an item'];
     if (state.color) parts.push(`${state.color} in color`);
     if (state.brand) parts.push(`brand/make: ${state.brand}`);
+    if (state.extractedDetails.uniqueFeatures.length) {
+      parts.push(`identifying features: ${state.extractedDetails.uniqueFeatures.join(', ')}`);
+    }
     const base = parts.join(', ');
     return [state.description, base, state.details].filter(Boolean).join('. ');
   }
 
   async function runGeneration() {
     matchRow.style.display = 'none';
-    continueRow.style.display = 'none';
+    continueRow.style.display = 'flex';
     addMessage("Give me a second — picturing that now…", 'ai');
     try {
       const { imageUrl } = await generateImage(buildDescription(), state.improvements);
@@ -178,9 +191,12 @@ document.addEventListener('DOMContentLoaded', () => {
       matchRow.style.display = 'flex';
     } catch (err) {
       addMessage(
-        `Sorry, I couldn't generate an image (${err.message}). Make sure the backend is running and OPENAI_API_KEY is set, then try again.`,
+        `I couldn't generate an optional image (${err.message}). You can still continue with your report.`,
         'ai'
       );
+      vizSummary.textContent = buildDescription();
+      vizCard.style.display = 'block';
+      continueRow.style.display = 'flex';
     }
   }
 
@@ -223,8 +239,16 @@ document.addEventListener('DOMContentLoaded', () => {
   continueBtn.addEventListener('click', () => {
     sessionStorage.setItem('findx-final-description', buildDescription());
     sessionStorage.setItem('findx-final-image', state.imageUrl);
+    sessionStorage.setItem('findx-extracted-details', JSON.stringify(state.extractedDetails));
     // Step 3 (last seen & location) isn't built yet — this is the next page to add.
     window.location.href = 'last-seen.html';
+  });
+
+  skipImageBtn.addEventListener('click', () => {
+    state.imageUrl = '';
+    vizCard.style.display = 'none';
+    matchRow.style.display = 'none';
+    continueRow.style.display = 'flex';
   });
 
   /* ---------------- kick off the conversation ---------------- */
@@ -247,27 +271,45 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function askAdaptiveQuestion(nextStep) {
-    const captureAnswer = async (text) => {
+    const handleUserAnswer = async (text) => {
       if (text && text.trim()) {
-        state.conversation.push({ question: nextStep.prompt, answer: text.trim() });
+        state.conversation.push({ role: 'user', content: text.trim() });
       }
       const followUp = await fetchFollowUpQuestion();
-      const prompt = followUp?.question || nextStep.prompt;
-      askQuestion({
-        prompt,
-        chips: nextStep.chips || [],
-        placeholder: nextStep.placeholder || 'Type your answer…',
-        onAnswer: (answer) => nextStep.onAnswer(answer),
-      });
+      if (followUp?.extractedDetails) {
+        const details = followUp.extractedDetails;
+        state.extractedDetails = {
+          ...state.extractedDetails,
+          ...details,
+          uniqueFeatures: [...new Set([
+            ...state.extractedDetails.uniqueFeatures,
+            ...(Array.isArray(details.uniqueFeatures) ? details.uniqueFeatures : []),
+          ])],
+        };
+        if (details.color && !state.color) state.color = details.color;
+        if (details.brand && !state.brand) state.brand = details.brand;
+        if (details.category && !state.itemName) state.itemName = details.category;
+      }
+      nextStep.onAnswer(text);
+      const nextAnswerHandler = answerHandler;
+      if (followUp?.question) {
+        askQuestion({
+          prompt: followUp.question,
+          placeholder: 'Type your answer…',
+          onAnswer: async (answer) => {
+            await fetchFollowUpQuestion();
+            if (nextAnswerHandler) nextAnswerHandler(answer);
+          },
+        });
+      }
     };
 
-    nextStep.ask = captureAnswer;
     const initial = nextStep.initialQuestion || nextStep.prompt;
     askQuestion({
       prompt: initial,
       chips: nextStep.chips || [],
       placeholder: nextStep.placeholder || 'Type your answer…',
-      onAnswer: (answer) => nextStep.onAnswer(answer),
+      onAnswer: handleUserAnswer,
     });
   }
 
