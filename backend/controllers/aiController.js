@@ -1,4 +1,4 @@
-const { getFollowUpQuestion, checkAIHealth, AI_MODEL, AI_EMBEDDING_MODEL } = require('../services/aiService');
+const { getFollowUpQuestion, checkAIHealth, analyzeImage, AI_MODEL, AI_EMBEDDING_MODEL } = require('../services/aiService');
 
 async function followUpQuestion(req, res) {
   try {
@@ -20,6 +20,7 @@ async function followUpQuestion(req, res) {
       success: true,
       question: result.question,
       extractedDetails: result.extractedDetails || {},
+      readyToGenerate: Boolean(result.readyToGenerate),
       usedFallback: Boolean(result.usedFallback),
     });
   } catch (error) {
@@ -28,6 +29,20 @@ async function followUpQuestion(req, res) {
       success: false,
       message: 'AI follow-up failed, using a safe fallback question.',
     });
+  }
+}
+
+async function analyzeLostImage(req, res) {
+  try {
+    const { image } = req.body || {};
+    if (!image || !String(image).startsWith('data:image/')) {
+      return res.status(400).json({ success: false, message: 'image must be a data URL' });
+    }
+    const extractedDetails = await analyzeImage(image);
+    return res.json({ success: true, extractedDetails });
+  } catch (error) {
+    console.error('AI image analysis error:', error.message);
+    return res.status(503).json({ success: false, message: error.message || 'Image analysis is unavailable' });
   }
 }
 
@@ -49,4 +64,4 @@ async function aiHealth(req, res) {
   }
 }
 
-module.exports = { followUpQuestion, aiHealth };
+module.exports = { followUpQuestion, aiHealth, analyzeLostImage };

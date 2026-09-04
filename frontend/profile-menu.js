@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const mount = document.getElementById('profile-menu');
   if (!mount) return;
 
-  const isAuthed = !!sessionStorage.getItem('findx-auth');
+  const isAuthed = !!localStorage.getItem('token');
 
   if (!isAuthed) {
     mount.innerHTML = '<a href="index.html" class="nav-login">Log in</a>';
@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('token');
     sessionStorage.removeItem('findx-auth');
     sessionStorage.removeItem('findx-user-email');
     sessionStorage.removeItem('findx-user-name');

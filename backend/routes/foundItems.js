@@ -7,8 +7,10 @@ const {
 } = require('../controllers/foundItemsController');
 
 const router = express.Router();
+const { requireAuth } = require('../middleware/auth');
+const { validateFoundItem } = require('../middleware/validateFoundItem');
 
-router.post('/', createFoundItem);
+router.post('/', requireAuth, validateFoundItem, createFoundItem);
 
 router.get('/', getFoundItems);
 

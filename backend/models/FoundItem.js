@@ -20,6 +20,15 @@ const foundItemSchema = new mongoose.Schema(
       trim: true
     },
 
+    category: { type: String, trim: true },
+    color: { type: String, trim: true },
+    brand: { type: String, trim: true },
+    size: { type: String, trim: true },
+    material: { type: String, trim: true },
+    model: { type: String, trim: true },
+    unique_features: [{ type: String, trim: true }],
+    visual_description: { type: String, trim: true },
+
     image_url: {
       type: String,
       trim: true

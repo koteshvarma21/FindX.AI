@@ -29,8 +29,10 @@ function validateLostItem(req, res, next) {
   const body = req.body;
   const errors = [];
 
-  if (!isValidEmail(body.contact_email)) {
-    errors.push('contact_email is required and must be a valid email address.');
+  if (!req.userId) errors.push('An authenticated user is required.');
+
+  if (body.unique_features !== undefined && !Array.isArray(body.unique_features)) {
+    errors.push('unique_features must be an array of strings.');
   }
 
   // Must have SOME way to identify the item: a description (for AI image-gen) or an uploaded image.

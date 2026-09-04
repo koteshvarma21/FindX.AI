@@ -29,6 +29,9 @@ async function runMatchingForLostItem(lostItemId) {
       overall_score: matchData.overallScore,
       ai_reason: matchData.aiReason,
       ai_model: matchData.aiModel,
+      color_score: matchData.colorScore,
+      brand_score: matchData.brandScore,
+      unique_features_score: matchData.uniqueFeaturesScore,
       match_status: 'pending',
     };
 
@@ -53,12 +56,13 @@ async function updateMatchStatus(req, res) {
   }
 
   try {
-    const match = await Match.findByIdAndUpdate(
-      req.params.matchId,
-      { match_status: status },
-      { new: true, runValidators: true }
-    );
+    const match = await Match.findById(req.params.matchId).populate('lost_item');
     if (!match) return res.status(404).json({ success: false, message: 'Match not found' });
+    if (String(match.lost_item.user) !== String(req.userId)) {
+      return res.status(403).json({ success: false, message: 'You cannot update this match' });
+    }
+    match.match_status = status;
+    await match.save();
 
     if (status === 'confirmed') {
       await LostItem.findByIdAndUpdate(match.lost_item, { status: 'resolved' });
@@ -98,6 +102,9 @@ async function runMatchingForFoundItem(foundItemId) {
       overall_score: matchData.overallScore,
       ai_reason: matchData.aiReason,
       ai_model: matchData.aiModel,
+      color_score: matchData.colorScore,
+      brand_score: matchData.brandScore,
+      unique_features_score: matchData.uniqueFeaturesScore,
       match_status: 'pending',
     };
 
@@ -121,9 +128,13 @@ async function getMatchesForLostItem(req, res) {
     }
 
     const matches = await Match.find({ lost_item: lostItemId })
+      .populate('lost_item')
       .populate('found_item')
       .sort({ overall_score: -1, created_at: -1 });
 
+    if (matches.length && String(matches[0].lost_item.user) !== String(req.userId)) {
+      return res.status(403).json({ success: false, message: 'You cannot view these matches' });
+    }
     return res.json({
       success: true,
       data: matches,
@@ -137,6 +148,11 @@ async function getMatchesForLostItem(req, res) {
 async function runMatchesForLostItem(req, res) {
   try {
     const { lostItemId } = req.params;
+    const lostItem = await LostItem.findById(lostItemId).select('user');
+    if (!lostItem) return res.status(404).json({ success: false, message: 'Lost item not found' });
+    if (String(lostItem.user) !== String(req.userId)) {
+      return res.status(403).json({ success: false, message: 'You cannot run matching for this report' });
+    }
     const results = await runMatchingForLostItem(lostItemId);
 
     return res.json({

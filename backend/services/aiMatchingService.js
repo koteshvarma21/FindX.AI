@@ -1,10 +1,13 @@
 const { getEmbedding } = require('./aiService');
 
 const MATCHING_WEIGHTS = {
-  semantic: 0.6,
-  location: 0.2,
-  time: 0.1,
-  category: 0.1,
+  semantic: 0.4,
+  category: 0.15,
+  color: 0.1,
+  brand: 0.1,
+  uniqueFeatures: 0.1,
+  location: 0.1,
+  time: 0.05,
 };
 
 const MATCH_THRESHOLDS = {
@@ -117,8 +120,8 @@ function getCategoryHint(value = '') {
 }
 
 function compareCategory(lostItem = {}, foundItem = {}) {
-  const left = getCategoryHint(`${lostItem.description || ''} ${lostItem.item_name || ''}`);
-  const right = getCategoryHint(`${foundItem.description || ''} ${foundItem.item_name || ''}`);
+  const left = lostItem.category || getCategoryHint(`${lostItem.description || ''} ${lostItem.item_name || ''}`);
+  const right = foundItem.category || getCategoryHint(`${foundItem.description || ''} ${foundItem.item_name || ''}`);
 
   if (!left || !right) return 0;
   if (left === right) return 100;
@@ -128,6 +131,37 @@ function compareCategory(lostItem = {}, foundItem = {}) {
   const rightTokens = new Set(tokenize(right));
   const overlap = [...leftTokens].filter((token) => rightTokens.has(token));
   return overlap.length ? 50 : 0;
+}
+
+function compareOptionalText(leftValue, rightValue) {
+  const left = normalizeText(leftValue);
+  const right = normalizeText(rightValue);
+  if (!left || !right) return null;
+  if (left === right) return 100;
+  return Math.round(jaccardSimilarity(left, right) * 100);
+}
+
+function compareColor(lostItem = {}, foundItem = {}) {
+  return compareOptionalText(lostItem.color, foundItem.color);
+}
+
+function compareBrand(lostItem = {}, foundItem = {}) {
+  return compareOptionalText(lostItem.brand, foundItem.brand);
+}
+
+function compareUniqueFeatures(lostItem = {}, foundItem = {}) {
+  const left = Array.isArray(lostItem.unique_features) ? lostItem.unique_features : [];
+  const right = Array.isArray(foundItem.unique_features) ? foundItem.unique_features : [];
+  if (!left.length || !right.length) return null;
+  return Math.round(jaccardSimilarity(left.join(' '), right.join(' ')) * 100);
+}
+
+function buildMatchingText(item = {}) {
+  return [
+    item.item_name, item.description, item.visual_description, item.category,
+    item.color, item.brand, item.model, item.material, item.size,
+    ...(Array.isArray(item.unique_features) ? item.unique_features : []),
+  ].filter(Boolean).join(' ');
 }
 
 function compareLocation(lostLocation = '', foundLocation = '') {
@@ -152,6 +186,29 @@ function compareLocation(lostLocation = '', foundLocation = '') {
   return Math.min(95, Math.max(0, base));
 }
 
+function coordinateDistanceKm(latA, lngA, latB, lngB) {
+  const values = [latA, lngA, latB, lngB].map(Number);
+  if (values.some(Number.isNaN)) return null;
+  const [aLat, aLng, bLat, bLng] = values.map((value) => value * Math.PI / 180);
+  const deltaLat = bLat - aLat;
+  const deltaLng = bLng - aLng;
+  const haversine = Math.sin(deltaLat / 2) ** 2 + Math.cos(aLat) * Math.cos(bLat) * Math.sin(deltaLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function compareLocationItems(lostItem = {}, foundItem = {}) {
+  const distance = coordinateDistanceKm(lostItem.last_seen_lat, lostItem.last_seen_lng, foundItem.found_lat, foundItem.found_lng);
+  if (distance !== null) {
+    if (distance <= 0.1) return 100;
+    if (distance <= 0.5) return 90;
+    if (distance <= 1) return 75;
+    if (distance <= 3) return 60;
+    if (distance <= 5) return 40;
+    return 20;
+  }
+  return compareLocation(lostItem.last_seen_location, foundItem.found_location);
+}
+
 function compareTime(lostDate, foundDate) {
   if (!lostDate || !foundDate) return 50;
 
@@ -168,8 +225,8 @@ function compareTime(lostDate, foundDate) {
 }
 
 async function computeSemanticSimilarity(descriptionA, descriptionB) {
-  const combinedA = String(descriptionA || '');
-  const combinedB = String(descriptionB || '');
+  const combinedA = typeof descriptionA === 'object' ? buildMatchingText(descriptionA) : String(descriptionA || '');
+  const combinedB = typeof descriptionB === 'object' ? buildMatchingText(descriptionB) : String(descriptionB || '');
 
   const leftTokens = new Set(tokenize(combinedA));
   const rightTokens = new Set(tokenize(combinedB));
@@ -203,19 +260,18 @@ function buildAiReason(result) {
 }
 
 async function scoreLostFoundMatch(lostItem = {}, foundItem = {}) {
-  const lostDescription = `${lostItem.description || ''} ${lostItem.item_name || ''} ${lostItem.last_seen_location || ''}`;
-  const foundDescription = `${foundItem.description || ''} ${foundItem.item_name || ''} ${foundItem.found_location || ''}`;
-
-  const semanticScore = await computeSemanticSimilarity(lostDescription, foundDescription);
-  const locationScore = compareLocation(lostItem.last_seen_location, foundItem.found_location);
+  const semanticScore = await computeSemanticSimilarity(lostItem, foundItem);
+  const locationScore = compareLocationItems(lostItem, foundItem);
   const timeScore = compareTime(lostItem.discovered_lost_at || lostItem.created_at, foundItem.found_at || foundItem.created_at);
   const categoryScore = compareCategory(lostItem, foundItem);
+  const colorScore = compareColor(lostItem, foundItem);
+  const brandScore = compareBrand(lostItem, foundItem);
+  const uniqueFeaturesScore = compareUniqueFeatures(lostItem, foundItem);
+  const available = { semantic: semanticScore, category: categoryScore, color: colorScore, brand: brandScore, uniqueFeatures: uniqueFeaturesScore, location: locationScore, time: timeScore };
+  const activeWeight = Object.keys(available).reduce((sum, key) => sum + (available[key] === null ? 0 : MATCHING_WEIGHTS[key]), 0) || 1;
 
   const overallScore = Math.round(
-    semanticScore * MATCHING_WEIGHTS.semantic +
-      locationScore * MATCHING_WEIGHTS.location +
-      timeScore * MATCHING_WEIGHTS.time +
-      categoryScore * MATCHING_WEIGHTS.category
+    Object.entries(available).reduce((sum, [key, score]) => sum + (score === null ? 0 : score * MATCHING_WEIGHTS[key]), 0) / activeWeight
   );
 
   const matchLevel =
@@ -230,9 +286,12 @@ async function scoreLostFoundMatch(lostItem = {}, foundItem = {}) {
     locationScore: Math.max(0, Math.min(100, locationScore)),
     timeScore: Math.max(0, Math.min(100, timeScore)),
     categoryScore: Math.max(0, Math.min(100, categoryScore)),
+    colorScore: colorScore === null ? null : Math.max(0, Math.min(100, colorScore)),
+    brandScore: brandScore === null ? null : Math.max(0, Math.min(100, brandScore)),
+    uniqueFeaturesScore: uniqueFeaturesScore === null ? null : Math.max(0, Math.min(100, uniqueFeaturesScore)),
     overallScore,
     matchLevel,
-    aiReason: buildAiReason({ overallScore }),
+    aiReason: buildAiReason({ semanticScore, locationScore, timeScore, categoryScore, overallScore }),
     aiModel: process.env.AI_MODEL || 'heuristic',
   };
 }
@@ -242,7 +301,12 @@ module.exports = {
   MATCH_THRESHOLDS,
   SEMANTIC_MATCH_LEVELS,
   compareCategory,
+  compareColor,
+  compareBrand,
+  compareUniqueFeatures,
   compareLocation,
+  compareLocationItems,
   compareTime,
   scoreLostFoundMatch,
+  buildMatchingText,
 };

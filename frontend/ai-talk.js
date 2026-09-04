@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
       uniqueFeatures: [],
     },
   };
+  try { mergeExtractedDetails(JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}')); } catch (_error) { /* ignore invalid temporary state */ }
 
   let answerHandler = null; // (text) => void — set by askQuestion()
 
@@ -163,6 +164,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function mergeExtractedDetails(details = {}) {
+    state.extractedDetails = {
+      ...state.extractedDetails,
+      ...details,
+      uniqueFeatures: [...new Set([
+        ...state.extractedDetails.uniqueFeatures,
+        ...(Array.isArray(details.uniqueFeatures) ? details.uniqueFeatures : []),
+      ])],
+    };
+    if (details.itemName && !state.itemName) state.itemName = details.itemName;
+    if (details.category && !state.itemName) state.itemName = details.category;
+    if (details.color && !state.color) state.color = details.color;
+    if (details.brand && !state.brand) state.brand = details.brand;
+  }
+
   /* ---------------- conversation flow ---------------- */
 
   function buildDescription() {
@@ -210,12 +226,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (accuracy >= 60) {
         try {
-          await confirmImage({
+          const confirmation = await confirmImage({
             description: buildDescription(),
             improvements: state.improvements,
             imageUrl: state.imageUrl,
             accuracy,
           });
+          if (confirmation.generatedImageId) state.generatedImageId = confirmation.generatedImageId;
           addMessage("Great, I've saved that. Ready to move on?", 'ai');
           continueRow.style.display = 'flex';
         } catch (err) {
@@ -240,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.setItem('findx-final-description', buildDescription());
     sessionStorage.setItem('findx-final-image', state.imageUrl);
     sessionStorage.setItem('findx-extracted-details', JSON.stringify(state.extractedDetails));
+    sessionStorage.setItem('findx-generated-image-id', state.generatedImageId || '');
     // Step 3 (last seen & location) isn't built yet — this is the next page to add.
     window.location.href = 'last-seen.html';
   });
@@ -254,20 +272,13 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------------- kick off the conversation ---------------- */
 
   function start() {
-    if (state.mode === 'upload') {
-      addMessage(
-        "Thanks for the photo! I can't scan images just yet, so let's describe it together in a few words instead.",
-        'ai'
-      );
-      askItemName();
-    } else if (state.mode === 'describe' && state.itemName) {
-      addMessage(`Got it — you lost a ${state.itemName}.`, 'ai');
-      if (state.description) addMessage(`You told us: "${state.description}"`, 'ai');
-      askColor();
-    } else {
-      addMessage("Hi! Let's build a picture of what you lost. What's the item called?", 'ai');
-      askItemName();
-    }
+    addMessage('I will ask only for details that are still useful for identifying your item.', 'ai');
+    askAdaptiveQuestion({
+      prompt: state.description || `What is the item called?`,
+      initialQuestion: state.description ? '' : 'What is the item called?',
+      placeholder: 'Describe one identifying detail…',
+      onAnswer: () => {},
+    });
   }
 
   function askAdaptiveQuestion(nextStep) {
@@ -276,38 +287,20 @@ document.addEventListener('DOMContentLoaded', () => {
         state.conversation.push({ role: 'user', content: text.trim() });
       }
       const followUp = await fetchFollowUpQuestion();
-      if (followUp?.extractedDetails) {
-        const details = followUp.extractedDetails;
-        state.extractedDetails = {
-          ...state.extractedDetails,
-          ...details,
-          uniqueFeatures: [...new Set([
-            ...state.extractedDetails.uniqueFeatures,
-            ...(Array.isArray(details.uniqueFeatures) ? details.uniqueFeatures : []),
-          ])],
-        };
-        if (details.color && !state.color) state.color = details.color;
-        if (details.brand && !state.brand) state.brand = details.brand;
-        if (details.category && !state.itemName) state.itemName = details.category;
+      mergeExtractedDetails(followUp?.extractedDetails);
+      const questionCount = state.conversation.filter((entry) => entry.role === 'user').length;
+      if (followUp?.readyToGenerate || questionCount >= 4 || !followUp?.question) {
+        runGeneration();
+        return;
       }
-      nextStep.onAnswer(text);
-      const nextAnswerHandler = answerHandler;
-      if (followUp?.question) {
-        askQuestion({
-          prompt: followUp.question,
-          placeholder: 'Type your answer…',
-          onAnswer: async (answer) => {
-            await fetchFollowUpQuestion();
-            if (nextAnswerHandler) nextAnswerHandler(answer);
-          },
-        });
-      }
+      askQuestion({ prompt: followUp.question, placeholder: 'Type your answer…', onAnswer: handleUserAnswer });
     };
 
-    const initial = nextStep.initialQuestion || nextStep.prompt;
+    const initial = nextStep.initialQuestion !== undefined ? nextStep.initialQuestion : nextStep.prompt;
+    if (!initial) return handleUserAnswer('');
     askQuestion({
       prompt: initial,
-      chips: nextStep.chips || [],
+      chips: [],
       placeholder: nextStep.placeholder || 'Type your answer…',
       onAnswer: handleUserAnswer,
     });

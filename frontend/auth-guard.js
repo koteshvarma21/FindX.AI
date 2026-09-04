@@ -1,8 +1,6 @@
-/* Runs before the rest of the page — sends visitors to index.html
-   (the login / sign up page) until they've completed the
-   email/username + password + OTP flow there. */
+/* Runs before the rest of the page and requires a real backend JWT. */
 (function () {
-  if (!sessionStorage.getItem('findx-auth')) {
+  if (!localStorage.getItem('token')) {
     window.location.replace('index.html');
   }
 })();

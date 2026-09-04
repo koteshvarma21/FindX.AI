@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const timeInput = document.getElementById('last-seen-time');
 
   const savedDescription = sessionStorage.getItem('findx-final-description') || 'No description saved yet.';
+  const extractedDetails = JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}');
   descriptionInput.value = savedDescription;
 
   form.addEventListener('submit', async (event) => {
@@ -17,8 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const email = sessionStorage.getItem('findx-user-email');
-    if (!email) {
+    const token = localStorage.getItem('token');
+    if (!token) {
       alert('Please login before submitting the report.');
       return;
     }
@@ -33,17 +34,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const payload = {
       description: savedDescription,
+      item_name: extractedDetails.itemName || sessionStorage.getItem('findx-item-name') || undefined,
+      category: extractedDetails.category,
+      color: extractedDetails.color,
+      brand: extractedDetails.brand,
+      size: extractedDetails.size,
+      material: extractedDetails.material,
+      model: extractedDetails.model,
+      unique_features: extractedDetails.uniqueFeatures || [],
+      visual_description: extractedDetails.visualDescription,
+      original_image_url: sessionStorage.getItem('findx-original-image') || undefined,
       ai_generated_image_url: sessionStorage.getItem('findx-final-image') || undefined,
-      contact_email: email,
+      generated_image: sessionStorage.getItem('findx-generated-image-id') || undefined,
+      contact_email: sessionStorage.getItem('findx-user-email') || undefined,
       last_seen_location: location,
       discovered_lost_at: discoveredLostAt || new Date().toISOString(),
       reporter_name: sessionStorage.getItem('findx-user-name') || 'Reporter',
     };
 
     try {
-      const response = await fetch('http://localhost:5000/api/lost-items', {
+      const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/lost-items`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
 

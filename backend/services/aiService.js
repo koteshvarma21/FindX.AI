@@ -17,9 +17,11 @@ function toConversationText(conversation = []) {
   return conversation
     .map((entry) => {
       if (typeof entry === 'string') return entry;
+      if (entry?.role && entry?.content) return `${entry.role}: ${entry.content}`;
       if (entry?.answer) return entry.answer;
       if (entry?.text) return entry.text;
       if (entry?.question && entry?.answer) return `${entry.question} ${entry.answer}`;
+      if (entry?.question) return entry.question;
       return '';
     })
     .filter(Boolean)
@@ -31,9 +33,14 @@ function extractKnownFacts(originalDescription = '', conversation = []) {
   const clean = normalizeText(text);
 
   const facts = {
+    itemName: '',
     category: '',
     color: '',
     brand: '',
+    size: '',
+    material: '',
+    model: '',
+    visualDescription: '',
     uniqueFeatures: [],
   };
 
@@ -46,7 +53,10 @@ function extractKnownFacts(originalDescription = '', conversation = []) {
   const brandWords = ['wildcraft', 'nike', 'adidas', 'puma', 'hp', 'dell', 'asus', 'apple', 'samsung', 'mi', 'oneplus', 'asus'];
 
   const foundItem = itemPatterns.find((keyword) => clean.includes(keyword));
-  if (foundItem) facts.category = foundItem;
+  if (foundItem) {
+    facts.category = foundItem;
+    facts.itemName = foundItem;
+  }
 
   const foundColor = colorWords.find((keyword) => clean.includes(keyword));
   if (foundColor) facts.color = foundColor;
@@ -60,6 +70,22 @@ function extractKnownFacts(originalDescription = '', conversation = []) {
     });
 
   return facts;
+}
+
+function normalizeExtractedDetails(details = {}, fallback = {}) {
+  return {
+    itemName: details.itemName || fallback.itemName || '',
+    category: details.category || fallback.category || '',
+    color: details.color || fallback.color || '',
+    brand: details.brand || fallback.brand || '',
+    size: details.size || fallback.size || '',
+    material: details.material || fallback.material || '',
+    model: details.model || fallback.model || '',
+    visualDescription: details.visualDescription || details.visual_description || fallback.visualDescription || '',
+    uniqueFeatures: Array.isArray(details.uniqueFeatures)
+      ? details.uniqueFeatures.filter(Boolean).map(String)
+      : fallback.uniqueFeatures || [],
+  };
 }
 
 function buildFallbackQuestion(originalDescription = '', conversation = []) {
@@ -120,6 +146,7 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
       success: true,
       question: fallbackQuestion,
       extractedDetails: facts,
+      readyToGenerate: Boolean(facts.category && facts.color && facts.uniqueFeatures.length),
       usedFallback: true,
     };
   }
@@ -130,7 +157,7 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
       messages: [
         {
           role: 'system',
-          content: 'You are a helpful assistant for a lost-and-found app. Ask one concise follow-up question that helps identify the item. Do not ask for information already provided. Return JSON with keys question and extractedDetails: {category, color, brand, uniqueFeatures}.'
+          content: 'You are a helpful assistant for a lost-and-found app. Extract every known item detail, never repeat a question or ask for known information, ask exactly one useful identifying question at a time, and set readyToGenerate true after at most five useful questions. Return only JSON with question, readyToGenerate, and extractedDetails: {itemName, category, color, brand, size, material, model, visualDescription, uniqueFeatures}.'
         },
         {
           role: 'user',
@@ -161,19 +188,19 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
     }
 
     const question = parsed?.question || fallbackQuestion;
-    const extractedDetails = {
-      category: parsed?.extractedDetails?.category || facts.category,
-      color: parsed?.extractedDetails?.color || facts.color,
-      brand: parsed?.extractedDetails?.brand || facts.brand,
-      uniqueFeatures: Array.isArray(parsed?.extractedDetails?.uniqueFeatures)
-        ? parsed.extractedDetails.uniqueFeatures
-        : facts.uniqueFeatures,
-    };
+    const extractedDetails = normalizeExtractedDetails(parsed?.extractedDetails, facts);
+    const questionCount = Array.isArray(conversation)
+      ? conversation.filter((entry) => entry?.role === 'assistant' || entry?.question).length
+      : 0;
+    const readyToGenerate = Boolean(parsed?.readyToGenerate) || questionCount >= 4 || Boolean(
+      extractedDetails.category && extractedDetails.color && extractedDetails.uniqueFeatures.length
+    );
 
     return {
       success: true,
       question,
       extractedDetails,
+      readyToGenerate,
       usedFallback: false,
     };
   } catch (_error) {
@@ -181,9 +208,26 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
       success: true,
       question: fallbackQuestion,
       extractedDetails: facts,
+      readyToGenerate: Boolean(facts.category && facts.color && facts.uniqueFeatures.length),
       usedFallback: true,
     };
   }
+}
+
+async function analyzeImage(imageData) {
+  if (!AI_API_KEY) throw new Error('AI_API_KEY is not configured');
+  const data = await callFeatherless('/chat/completions', {
+    model: AI_MODEL,
+    messages: [
+      { role: 'system', content: 'Analyze the uploaded lost-and-found item image. Return only JSON with itemName, category, color, brand, size, material, model, visualDescription, uniqueFeatures.' },
+      { role: 'user', content: [{ type: 'text', text: 'Extract visible identifying details from this item.' }, { type: 'image_url', image_url: { url: imageData } }] },
+    ],
+    response_format: { type: 'json_object' },
+  });
+  const raw = data?.choices?.[0]?.message?.content || '{}';
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch (_error) { throw new Error('Vision provider returned malformed JSON'); }
+  return normalizeExtractedDetails(parsed);
 }
 
 async function checkAIHealth() {
@@ -208,6 +252,7 @@ module.exports = {
   AI_BASE_URL,
   AI_MODEL,
   AI_EMBEDDING_MODEL,
+  analyzeImage,
   callFeatherless,
   checkAIHealth,
   buildFallbackQuestion,
@@ -215,5 +260,6 @@ module.exports = {
   getEmbedding,
   getFollowUpQuestion,
   normalizeText,
+  normalizeExtractedDetails,
   toConversationText,
 };

@@ -2,23 +2,6 @@ const User = require('../models/User');
 const FoundItem = require('../models/FoundItem');
 const { runMatchingForFoundItem } = require('./matchesController');
 
-async function findOrCreateUser(email, name) {
-  let user = await User.findOne({
-    email: email.toLowerCase()
-  });
-
-  if (!user) {
-    user = await User.create({
-      email: email.toLowerCase(),
-      name: name || 'Reporter',
-      fullName: name || 'Reporter',
-      role: 'reporter'
-    });
-  }
-
-  return user._id;
-}
-
 async function createFoundItem(req, res) {
   try {
     const {
@@ -34,29 +17,36 @@ async function createFoundItem(req, res) {
     if (
       !item_name ||
       !description ||
-      !found_location ||
-      !contact_email
+      !found_location
     ) {
       return res.status(400).json({
         success: false,
         message:
-          'item_name, description, found_location and contact_email are required'
+          'item_name, description and found_location are required'
       });
     }
 
-    const userId = await findOrCreateUser(
-      contact_email,
-      reporter_name
-    );
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(401).json({ success: false, message: 'Authenticated user not found' });
 
     const item = await FoundItem.create({
-      user: userId,
+      user: req.userId,
       item_name,
       description,
+      category: req.body.category || undefined,
+      color: req.body.color || undefined,
+      brand: req.body.brand || undefined,
+      size: req.body.size || undefined,
+      material: req.body.material || undefined,
+      model: req.body.model || undefined,
+      unique_features: req.body.unique_features || [],
+      visual_description: req.body.visual_description || undefined,
       found_location,
       found_at: found_at || undefined,
-      contact_email,
-      image_url: image_url || undefined
+      contact_email: user.email,
+      image_url: image_url || undefined,
+      found_lat: req.body.found_lat,
+      found_lng: req.body.found_lng,
     });
 
     const matches = await runMatchingForFoundItem(item._id);

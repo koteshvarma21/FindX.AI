@@ -93,9 +93,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       sessionStorage.setItem('findx-search-mode', 'upload');
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const apiBase = window.FINDX_API_BASE || 'http://localhost:5000/api';
+          const uploadResponse = await fetch(`${apiBase}/images/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+            body: JSON.stringify({ image: reader.result }),
+          });
+          const uploadResult = await uploadResponse.json();
+          if (!uploadResponse.ok) throw new Error(uploadResult.message || 'Image upload unavailable');
+          sessionStorage.setItem('findx-original-image', uploadResult.imageUrl);
+
+          const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: reader.result }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.message || 'Image analysis unavailable');
+          sessionStorage.setItem('findx-extracted-details', JSON.stringify(result.extractedDetails || {}));
+        } catch (error) {
+          console.error('Image analysis unavailable:', error.message);
+        }
+        window.location.href = 'ai-talk.html';
+      };
+      reader.readAsDataURL(file);
       sessionStorage.removeItem('findx-item-name');
       sessionStorage.removeItem('findx-item-description');
-      window.location.href = 'ai-talk.html';
       return;
     }
 

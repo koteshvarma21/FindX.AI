@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const response = await fetch(
-      'http://localhost:5000/api/found-items'
+      `${window.FINDX_API_BASE || 'http://localhost:5000/api'}/found-items`
     );
 
     const result = await response.json();

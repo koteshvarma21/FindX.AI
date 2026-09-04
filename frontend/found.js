@@ -12,6 +12,24 @@ document.addEventListener('DOMContentLoaded', () => {
     fileChosen.style.display = 'block';
   }
 
+  async function uploadImage(file) {
+    if (!file) return '';
+    const image = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/images/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      body: JSON.stringify({ image }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Image upload failed');
+    return { imageUrl: result.imageUrl, imageData: image };
+  }
+
   browseBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => showFile(fileInput.files[0]));
 
@@ -52,24 +70,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const date =
     document.getElementById('found-date').value;
 
-  const email =
-    sessionStorage.getItem('findx-user-email');
-
   const name =
     sessionStorage.getItem('findx-user-name');
 
-  if (!email) {
+  if (!localStorage.getItem('token')) {
     alert('Please login before submitting an item.');
     return;
   }
 
   try {
+    const uploaded = await uploadImage(fileInput.files[0]);
+    let extractedDetails = {};
+    if (uploaded.imageData) {
+      try {
+        const analysisResponse = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: uploaded.imageData }),
+        });
+        const analysis = await analysisResponse.json();
+        if (analysisResponse.ok) extractedDetails = analysis.extractedDetails || {};
+      } catch (analysisError) { console.warn('Found-image analysis unavailable:', analysisError.message); }
+    }
     const response = await fetch(
-      'http://localhost:5000/api/found-items',
+      `${window.FINDX_API_BASE || 'http://localhost:5000/api'}/found-items`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
+          , Authorization: `Bearer ${localStorage.getItem('token')}`
         },
 
         body: JSON.stringify({
@@ -77,8 +106,17 @@ document.addEventListener('DOMContentLoaded', () => {
           description: description,
           found_location: location,
           found_at: date || undefined,
-          contact_email: email,
-          reporter_name: name
+          contact_email: sessionStorage.getItem('findx-user-email'),
+          reporter_name: name,
+          image_url: uploaded.imageUrl,
+          category: extractedDetails.category,
+          color: extractedDetails.color,
+          brand: extractedDetails.brand,
+          size: extractedDetails.size,
+          material: extractedDetails.material,
+          model: extractedDetails.model,
+          unique_features: extractedDetails.uniqueFeatures || [],
+          visual_description: extractedDetails.visualDescription
         })
       }
     );

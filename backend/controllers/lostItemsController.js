@@ -21,20 +21,31 @@ async function createLostItem(req, res) {
   const body = req.body;
 
   try {
-    const userId = await findOrCreateUserByEmail(body.contact_email, body.reporter_name);
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(401).json({ success: false, errors: ['Authenticated user not found.'] });
 
     const lostItem = await LostItem.create({
-      user: userId,
+      user: req.userId,
       description: body.description || undefined,
+      item_name: body.item_name || undefined,
+      category: body.category || undefined,
+      color: body.color || undefined,
+      brand: body.brand || undefined,
+      size: body.size || undefined,
+      material: body.material || undefined,
+      model: body.model || undefined,
+      unique_features: body.unique_features || [],
+      visual_description: body.visual_description || undefined,
       original_image_url: body.original_image_url || undefined,
       ai_generated_image_url: body.ai_generated_image_url || undefined,
+      generated_image: body.generated_image || undefined,
       user_confidence_score: body.user_confidence_score,
       last_seen_location: body.last_seen_location,
       last_seen_lat: body.last_seen_lat,
       last_seen_lng: body.last_seen_lng,
       discovered_lost_at: body.discovered_lost_at,
       travel_path: body.travel_path || [],
-      contact_email: body.contact_email,
+      contact_email: user.email,
     });
 
     const matchingResults = await runMatchingForLostItem(lostItem._id);

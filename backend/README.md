@@ -1,7 +1,7 @@
 # FindX.AI — Backend
 
-Node.js + Express + MongoDB (Mongoose). Handles the `lost-items` flow end to end:
-`Frontend form -> POST /api/lost-items -> validate -> insert into MongoDB -> return ID`
+Node.js + Express + MongoDB (Mongoose) backend for the static HTML/CSS/JavaScript frontend:
+`Frontend -> authenticated API -> MongoDB -> AI matching`
 
 ## 1. Setup
 
@@ -58,7 +58,7 @@ backend/
 │   ├── User.js                     # reporter/security identity (by email)
 │   ├── LostItem.js                 # Search Item page reports
 │   ├── FoundItem.js                # Found Items page reports
-│   ├── Match.js                    # written by the matching AI / CCTV module
+│   ├── Match.js                    # written by the matching service
 │   └── MailLog.js                  # audit trail, prevents duplicate emails
 ├── controllers/
 │   └── lostItemsController.js
@@ -70,6 +70,21 @@ backend/
 ```
 
 ## 5. API surface (current)
+| POST   | `/api/auth/register`    | Create an account and return a JWT       |
+| POST   | `/api/auth/login`       | Authenticate and return a JWT            |
+| GET    | `/api/auth/me`          | Fetch the authenticated user             |
+| POST   | `/api/ai/follow-up`     | Get structured adaptive item questions   |
+| POST   | `/api/ai/analyze-image` | Analyze an uploaded item image           |
+| GET    | `/api/ai/health`        | Check Featherless chat and embeddings    |
+| POST   | `/api/images/generate`  | Generate an optional item image          |
+| POST   | `/api/images/confirm`   | Confirm and store a generated image      |
+| POST   | `/api/images/upload`    | Store an uploaded image and return URL   |
+| POST   | `/api/found-items`      | Create an authenticated found report    |
+| GET    | `/api/found-items`      | List found reports                      |
+| GET    | `/api/found-items/:id`  | Fetch one found report                  |
+| POST   | `/api/matches/run/:lostItemId` | Run matching for an owned lost report |
+| GET    | `/api/matches/lost/:lostItemId` | Get owned report matches          |
+| PATCH  | `/api/matches/:matchId/status` | Confirm or reject an owned match  |
 
 | Method | Route                  | Purpose                                 |
 |--------|-------------------------|------------------------------------------|
@@ -78,35 +93,11 @@ backend/
 | GET    | `/api/lost-items`       | List items (optional `?status=active`)   |
 | GET    | `/api/lost-items/:id`   | Fetch one item by ID                     |
 
-## 6. How your teammates plug in
+## 6. Notes
 
-- **Found Items page teammate**: copy `models/FoundItem.js` (already scaffolded),
-  `routes/lostItems.js` and `controllers/lostItemsController.js` as a template,
-  rename to `foundItems.js` / `foundItemsController.js`, and mount it in
-  `server.js` as `/api/found-items`.
+- Report creation and match updates require a JWT.
 
-- **Matching AI / CCTV teammate**: give them `GET /api/lost-items?status=active`
-  and `GET /api/found-items?status=active` to pull the current queues, plus a
-  `POST /api/matches` endpoint (add it the same way, using the `Match` model
-  already scaffolded in `models/Match.js`) that they call with
-  `{ lost_item, found_item, image_similarity_score, match_source }` whenever
-  their model finds a hit.
-
-- **Mail service**: watch the `Match` collection for new `pending` docs
-  (`Match.find({ match_status: 'pending' })` on a simple polling interval is
-  enough for a hackathon), send email using `EMAIL_USER` / `EMAIL_PASSWORD`
-  via Nodemailer, then update `match_status` and write a `MailLog` entry so
-  nothing gets emailed twice.
-
-- **Frontend teammate**: just needs the routes table above and the JSON shape
-  in step 3 — no MongoDB knowledge required.
-
-## 7. Notes
-
-- No authentication yet — the reporter is identified purely by email, and a
-  `User` document is auto-created (via an atomic upsert) the first time that
-  email is seen. Fine for a hackathon demo; flag it as a known limitation if
-  judges ask.
+- Public GET endpoints support browsing; private report and match operations use the authenticated account.
 - The project previously used a PostgreSQL `schema.sql`. This has been fully
   replaced by the Mongoose models above per the MongoDB stack in the main
   project README — the old `database/schema.sql` file can be archived or

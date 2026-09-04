@@ -387,6 +387,28 @@ h1 em{
   height: 48px;
 }
 
+.item-card-img img, .match-images img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.match-images{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-height: 130px;
+}
+
+.match-images > div{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(232,99,10,0.08);
+  color: var(--ink-soft);
+}
+
 .item-card-body{
   padding: 20px 18px 18px;
   display: flex;
