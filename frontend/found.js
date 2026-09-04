@@ -37,10 +37,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    // Demo-only: no backend wired up yet. Show a confirmation instead.
+  form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const itemName =
+    document.getElementById('found-item-name').value.trim();
+
+  const description =
+    document.getElementById('found-description').value.trim();
+
+  const location =
+    document.getElementById('found-location').value.trim();
+
+  const date =
+    document.getElementById('found-date').value;
+
+  const email =
+    sessionStorage.getItem('findx-user-email');
+
+  const name =
+    sessionStorage.getItem('findx-user-name');
+
+  if (!email) {
+    alert('Please login before submitting an item.');
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      'http://localhost:5000/api/found-items',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({
+          item_name: itemName,
+          description: description,
+          found_location: location,
+          found_at: date || undefined,
+          contact_email: email,
+          reporter_name: name
+        })
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.message || 'Failed to submit found item'
+      );
+    }
+
     success.classList.add('is-visible');
-    setTimeout(() => success.classList.remove('is-visible'), 4000);
-  });
+
+    form.reset();
+
+    setTimeout(() => {
+      window.location.href = 'found-items.html';
+    }, 1000);
+
+  } catch (error) {
+    console.error(error);
+    alert(error.message);
+  }
+});
 });
