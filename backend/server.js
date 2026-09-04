@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const lostItemsRouter = require('./routes/lostItems');
 const authRouter = require('./routes/auth');
 const imagesRouter = require('./routes/images');
-// const foundItemsRouter = require('./routes/foundItems'); // add when that module exists
+const foundItemsRouter = require('./routes/foundItems'); // add when that module exists
 // const matchesRouter = require('./routes/matches');       // add when matching AI is wired up
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -39,7 +39,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/lost-items', lostItemsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/images', imagesRouter);
-// app.use('/api/found-items', foundItemsRouter);
+app.use('/api/found-items', foundItemsRouter);
 // app.use('/api/matches', matchesRouter);
 
 // --- 404 handler ---
