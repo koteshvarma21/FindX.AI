@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
       grid.appendChild(card);
+      card.querySelector('img')?.addEventListener('error', (event) => { event.currentTarget.replaceWith(document.createTextNode('Image unavailable')); });
     });
   } catch (error) {
     console.error(error);

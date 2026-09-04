@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function uploadImage(file) {
-    if (!file) return '';
+    if (!file) return { imageUrl: '', imageData: '' };
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Use a JPG, PNG, or WEBP image up to 10 MB.');
     const image = await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -99,12 +99,16 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const analysisResponse = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
           body: JSON.stringify({ image: uploaded.imageData }),
         });
         const analysis = await analysisResponse.json();
-        if (analysisResponse.ok) extractedDetails = analysis.extractedDetails || {};
-      } catch (analysisError) { console.warn('Found-image analysis unavailable:', analysisError.message); }
+        if (!analysisResponse.ok) throw new Error(analysis.message || 'Image analysis is currently unavailable');
+        extractedDetails = analysis.extractedDetails || {};
+      } catch (analysisError) {
+        console.warn('Found-image analysis unavailable:', analysisError.message);
+        alert('Image was uploaded, but AI image analysis is currently unavailable. You can continue by describing the item manually.');
+      }
     }
     const response = await fetch(
       `${window.FINDX_API_BASE || 'http://localhost:5000/api'}/found-items`,

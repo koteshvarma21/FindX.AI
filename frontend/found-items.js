@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const imageUrl = window.resolveFindxAssetUrl ? window.resolveFindxAssetUrl(item.image_url) : item.image_url;
       const image = imageUrl ? document.createElement('img') : null;
-      if (image) { image.src = imageUrl; image.alt = item.item_name || 'Found item'; image.loading = 'lazy'; }
+      if (image) { image.src = imageUrl; image.alt = item.item_name || 'Found item'; image.loading = 'lazy'; image.onerror = () => { image.replaceWith(document.createTextNode('Image unavailable')); }; }
       card.querySelector('.item-card-img').append(image || document.createTextNode('No image'));
 
       card.querySelector('.item-description').textContent =

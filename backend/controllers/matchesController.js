@@ -63,8 +63,12 @@ async function updateMatchStatus(req, res) {
     await match.save();
 
     if (status === 'confirmed') {
-      await LostItem.findByIdAndUpdate(match.lost_item, { status: 'resolved' });
+      await LostItem.findByIdAndUpdate(match.lost_item._id, { status: 'resolved' });
       await FoundItem.findByIdAndUpdate(match.found_item, { status: 'resolved' });
+      await Match.updateMany(
+        { $or: [{ lost_item: match.lost_item._id }, { found_item: match.found_item }], _id: { $ne: match._id }, match_status: 'pending' },
+        { $set: { match_status: 'rejected' } }
+      );
     }
 
     return res.json({ success: true, data: match });

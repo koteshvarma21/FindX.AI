@@ -5,8 +5,11 @@ const crypto = require('crypto');
 const uploadDirectory = path.join(__dirname, '..', 'uploads');
 
 async function storeDataUrl(dataUrl) {
+  if (/^\/uploads\/[A-Za-z0-9._-]+$/.test(String(dataUrl || '')) || /^https?:\/\//i.test(String(dataUrl || ''))) {
+    return dataUrl;
+  }
   const match = /^data:(image\/(?:png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
-  if (!match) return dataUrl;
+  if (!match) throw new Error('A valid JPEG, PNG, or WEBP data URL is required');
 
   const extension = match[1] === 'image/jpeg' || match[1] === 'image/jpg' ? 'jpg' : match[1].split('/')[1];
   const buffer = Buffer.from(match[2], 'base64');

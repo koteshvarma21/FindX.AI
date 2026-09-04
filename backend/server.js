@@ -18,6 +18,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
 const expensiveLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+const matchingLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { success: false, message: 'Too many matching requests. Please try again later.' } });
 
 // --- Middleware ---
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
@@ -36,6 +37,7 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/ai', expensiveLimiter);
 app.use('/api/images', expensiveLimiter);
+app.use('/api/matches/run', matchingLimiter);
 
 // --- Routes ---
 app.get('/api/health', (req, res) => {

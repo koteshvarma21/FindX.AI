@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('token');
-    sessionStorage.removeItem('findx-auth');
+    ['findx-auth', 'findx-user-name', 'findx-user-email', 'findx-user-username', 'findx-search-mode', 'findx-item-name', 'findx-item-description', 'findx-original-image', 'findx-extracted-details', 'findx-final-description', 'findx-final-image', 'findx-generated-image-id', 'findx-image-confidence', 'findx-lost-item-id'].forEach((key) => sessionStorage.removeItem(key));
     sessionStorage.removeItem('findx-user-email');
     sessionStorage.removeItem('findx-user-name');
     sessionStorage.removeItem('findx-user-username');

@@ -1,12 +1,19 @@
 const { getEmbedding } = require('./aiService');
 const embeddingCache = new Map();
+const EMBEDDING_CACHE_LIMIT = 750;
+const EMBEDDING_CACHE_TTL_MS = 45 * 60 * 1000;
 
 async function getCachedEmbedding(text) {
   const key = String(text || '').trim();
   if (!key) return null;
-  if (embeddingCache.has(key)) return embeddingCache.get(key);
+  const cached = embeddingCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (cached) embeddingCache.delete(key);
   const embedding = await getEmbedding(key);
-  embeddingCache.set(key, embedding);
+  if (embedding) {
+      if (embeddingCache.size >= EMBEDDING_CACHE_LIMIT) embeddingCache.delete(embeddingCache.keys().next().value);
+    embeddingCache.set(key, { value: embedding, expiresAt: Date.now() + EMBEDDING_CACHE_TTL_MS });
+  }
   return embedding;
 }
 
@@ -275,7 +282,11 @@ async function computeVisualFeatureScore(lostItem, foundItem) {
 function buildAiReason(result) {
   const reasons = [];
   if (result.semanticScore >= 80) reasons.push('descriptions are highly similar');
+  if (result.visualFeaturesScore >= 80) reasons.push('visual features are highly similar');
   else if (result.semanticScore >= 65) reasons.push('descriptions share several identifying details');
+  if (result.colorScore >= 90) reasons.push('colors match');
+  if (result.brandScore >= 90) reasons.push('brands match');
+  if (result.uniqueFeaturesScore >= 80) reasons.push('identifying features overlap');
   if (result.locationScore >= 80) reasons.push('locations are very close');
   else if (result.locationScore >= 50) reasons.push('locations have meaningful overlap');
   if (result.timeScore >= 80) reasons.push('the reports are close in time');
@@ -319,7 +330,7 @@ async function scoreLostFoundMatch(lostItem = {}, foundItem = {}, options = {}) 
     uniqueFeaturesScore: uniqueFeaturesScore === null ? null : Math.max(0, Math.min(100, uniqueFeaturesScore)),
     overallScore,
     matchLevel,
-    aiReason: buildAiReason({ semanticScore, locationScore, timeScore, categoryScore, overallScore }),
+    aiReason: buildAiReason({ semanticScore, visualFeaturesScore, locationScore, timeScore, categoryScore, colorScore, brandScore, uniqueFeaturesScore, overallScore }),
     aiModel: process.env.AI_MODEL || 'heuristic',
   };
 }

@@ -246,16 +246,23 @@ async function analyzeImage(imageData) {
 }
 
 async function checkAIHealth() {
-  const chatResponse = await callFeatherless('/chat/completions', {
+  const chatConfigured = Boolean(AI_API_KEY && AI_BASE_URL && AI_MODEL);
+  const embeddingConfigured = Boolean(AI_API_KEY && AI_BASE_URL && AI_EMBEDDING_MODEL);
+  const visionConfigured = Boolean(AI_API_KEY && AI_BASE_URL && AI_VISION_MODEL);
+  const chatResponse = chatConfigured ? await callFeatherless('/chat/completions', {
     model: AI_MODEL,
     messages: [{ role: 'user', content: 'Reply with the word OK.' }],
     max_tokens: 4,
-  });
-  const embedding = await getEmbedding('FindX health check');
+  }) : null;
+  const embedding = embeddingConfigured ? await getEmbedding('FindX health check') : null;
 
   return {
-    success: Boolean(chatResponse && embedding && embedding.length),
+    success: Boolean(chatResponse && embedding && embedding.length && visionConfigured),
     provider: 'Featherless',
+    chatConfigured,
+    embeddingConfigured,
+    visionConfigured,
+    imageGenerationConfigured: Boolean(process.env.OPENAI_API_KEY),
     chatModel: AI_MODEL,
     embeddingModel: AI_EMBEDDING_MODEL,
     chatWorking: Boolean(chatResponse),

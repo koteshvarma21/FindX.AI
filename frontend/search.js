@@ -99,6 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       sessionStorage.setItem('findx-search-mode', 'upload');
+        sessionStorage.removeItem('findx-extracted-details');
+        sessionStorage.removeItem('findx-original-image');
       const file = fileInput.files[0];
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) return;
       const reader = new FileReader();
@@ -111,19 +113,24 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify({ image: reader.result }),
           });
           const uploadResult = await uploadResponse.json();
-          if (!uploadResponse.ok) throw new Error(uploadResult.message || 'Image upload unavailable');
+          if (!uploadResponse.ok) throw new Error(`Unable to upload image: ${uploadResult.message || 'service unavailable'}`);
           sessionStorage.setItem('findx-original-image', uploadResult.imageUrl);
 
           const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
             body: JSON.stringify({ image: reader.result }),
           });
           const result = await response.json();
-          if (!response.ok) throw new Error(result.message || 'Image analysis unavailable');
+          if (!response.ok) throw new Error(result.message || 'Image analysis is currently unavailable');
           sessionStorage.setItem('findx-extracted-details', JSON.stringify(result.extractedDetails || {}));
         } catch (error) {
           console.error('Image analysis unavailable:', error.message);
+          fileChosen.textContent = error.message.includes('upload')
+            ? error.message
+            : 'Image was uploaded, but AI image analysis is currently unavailable. You can continue by describing the item manually.';
+          fileChosen.style.color = '#B0392E';
+          fileChosen.style.display = 'block';
         }
         window.location.href = 'ai-talk.html';
       };

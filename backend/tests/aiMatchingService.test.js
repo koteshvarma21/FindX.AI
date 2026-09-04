@@ -1,7 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { scoreLostFoundMatch, SEMANTIC_MATCH_LEVELS } = require('../services/aiMatchingService');
+const { scoreLostFoundMatch, SEMANTIC_MATCH_LEVELS, MATCHING_WEIGHTS, buildVisualMatchingText } = require('../services/aiMatchingService');
+
+test('matching weights total one and structured visual text is included', () => {
+  assert.equal(Object.values(MATCHING_WEIGHTS).reduce((sum, weight) => sum + weight, 0), 1);
+  assert.match(buildVisualMatchingText({ color: 'black', brand: 'Acme', unique_features: ['red zipper'] }), /black Acme red zipper/);
+});
 
 test('semantic matching strongly scores close lost and found descriptions', async () => {
   const result = await scoreLostFoundMatch(

@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
       grid.appendChild(card);
+      card.querySelectorAll('img').forEach((image) => { image.onerror = () => { image.replaceWith(document.createTextNode('Image unavailable')); }; });
 
       const updateStatus = async (nextStatus) => {
         if (nextStatus === 'confirmed' && !window.confirm('Are you sure this is your lost item?')) return;

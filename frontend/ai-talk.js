@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
       uniqueFeatures: [],
     },
   };
-  try { mergeExtractedDetails(JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}')); } catch (_error) { /* ignore invalid temporary state */ }
+  try { mergeExtractedDetails(JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}')); } catch (_error) { }
 
   let answerHandler = null; // (text) => void — set by askQuestion()
 
@@ -273,9 +273,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function start() {
     addMessage('I will ask only for details that are still useful for identifying your item.', 'ai');
+    const hasExistingDetails = Boolean(state.description || state.extractedDetails.itemName || state.extractedDetails.category);
     askAdaptiveQuestion({
-      prompt: state.description || `What is the item called?`,
-      initialQuestion: state.description ? '' : 'What is the item called?',
+      prompt: 'What is the item called?',
+      initialQuestion: hasExistingDetails ? '' : 'What is the item called?',
       placeholder: 'Describe one identifying detail…',
       onAnswer: () => {},
     });

@@ -18,6 +18,12 @@ router.post('/register', async (req, res) => {
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: 'A valid email address is required' });
+    }
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+      return res.status(400).json({ message: 'Username must be 3-30 characters using letters, numbers, or underscores' });
+    }
 
     const normalizedUsername = username.toLowerCase();
     const normalizedEmail = email.toLowerCase();
