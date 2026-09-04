@@ -138,10 +138,19 @@ function getCategoryHint(value = '') {
 }
 
 function compareCategory(lostItem = {}, foundItem = {}) {
-  const left = lostItem.category || getCategoryHint(`${lostItem.description || ''} ${lostItem.item_name || ''}`);
-  const right = foundItem.category || getCategoryHint(`${foundItem.description || ''} ${foundItem.item_name || ''}`);
+  const canonical = (value) => {
+    const normalized = normalizeText(value);
+    if (!normalized) return null;
+    if (['bag', 'backpack', 'rucksack', 'satchel', 'school bag', 'college bag'].some((word) => normalized.includes(word))) return 'backpack';
+    if (['phone', 'smartphone', 'mobile'].some((word) => normalized.includes(word))) return 'phone';
+    return normalized;
+  };
+  const leftText = `${lostItem.description || ''} ${lostItem.item_name || ''}`.trim();
+  const rightText = `${foundItem.description || ''} ${foundItem.item_name || ''}`.trim();
+  const left = canonical(lostItem.category) || canonical(leftText ? getCategoryHint(leftText) : '');
+  const right = canonical(foundItem.category) || canonical(rightText ? getCategoryHint(rightText) : '');
 
-  if (!left || !right) return 0;
+  if (!left || !right) return null;
   if (left === right) return 100;
   if (left.includes(right) || right.includes(left)) return 80;
 
@@ -220,7 +229,8 @@ function coordinateDistanceKm(latA, lngA, latB, lngB) {
 }
 
 function compareLocationItems(lostItem = {}, foundItem = {}) {
-  const distance = coordinateDistanceKm(lostItem.last_seen_lat, lostItem.last_seen_lng, foundItem.found_lat, foundItem.found_lng);
+  const hasCoordinates = [lostItem.last_seen_lat, lostItem.last_seen_lng, foundItem.found_lat, foundItem.found_lng].every((value) => value !== undefined && value !== null);
+  const distance = hasCoordinates ? coordinateDistanceKm(lostItem.last_seen_lat, lostItem.last_seen_lng, foundItem.found_lat, foundItem.found_lng) : null;
   if (distance !== null) {
     if (distance <= 0.1) return 100;
     if (distance <= 0.5) return 90;
@@ -229,21 +239,28 @@ function compareLocationItems(lostItem = {}, foundItem = {}) {
     if (distance <= 5) return 40;
     return 20;
   }
-  return compareLocation(lostItem.last_seen_location, foundItem.found_location);
+  const locations = [
+    lostItem.last_seen_location,
+    ...(Array.isArray(lostItem.travel_path) ? lostItem.travel_path.map((stop) => stop?.location) : []),
+  ].filter(Boolean);
+  if (!locations.length) return null;
+  return Math.max(...locations.map((location) => compareLocation(location, foundItem.found_location)));
 }
 
 function compareTime(lostDate, foundDate) {
-  if (!lostDate || !foundDate) return 50;
+  if (!lostDate || !foundDate) return null;
 
   const left = new Date(lostDate).getTime();
   const right = new Date(foundDate).getTime();
-  if (Number.isNaN(left) || Number.isNaN(right)) return 50;
+  if (Number.isNaN(left) || Number.isNaN(right)) return null;
 
-  const diffDays = Math.abs((left - right) / (1000 * 60 * 60 * 24));
+  const diffDays = (right - left) / (1000 * 60 * 60 * 24);
+  if (diffDays < -1) return 0;
+  if (diffDays <= 0) return 95;
   if (diffDays <= 1) return 90;
   if (diffDays <= 3) return 75;
   if (diffDays <= 7) return 60;
-  if (diffDays <= 14) return 45;
+  if (diffDays <= 14) return 40;
   return 20;
 }
 
@@ -300,7 +317,7 @@ async function scoreLostFoundMatch(lostItem = {}, foundItem = {}, options = {}) 
   const semanticScore = await computeSemanticSimilarity(lostItem, foundItem);
   const visualFeaturesScore = options.visualFeaturesScore ?? await computeVisualFeatureScore(lostItem, foundItem);
   const locationScore = compareLocationItems(lostItem, foundItem);
-  const timeScore = compareTime(lostItem.discovered_lost_at || lostItem.created_at, foundItem.found_at || foundItem.created_at);
+  const timeScore = compareTime(lostItem.last_seen_at || lostItem.discovered_lost_at, foundItem.found_at);
   const categoryScore = compareCategory(lostItem, foundItem);
   const colorScore = compareColor(lostItem, foundItem);
   const brandScore = compareBrand(lostItem, foundItem);
@@ -322,8 +339,8 @@ async function scoreLostFoundMatch(lostItem = {}, foundItem = {}, options = {}) 
   return {
     semanticScore: Math.max(0, Math.min(100, semanticScore)),
     locationScore: Math.max(0, Math.min(100, locationScore)),
-    timeScore: Math.max(0, Math.min(100, timeScore)),
-    categoryScore: Math.max(0, Math.min(100, categoryScore)),
+    timeScore: timeScore === null ? null : Math.max(0, Math.min(100, timeScore)),
+    categoryScore: categoryScore === null ? null : Math.max(0, Math.min(100, categoryScore)),
     visualFeaturesScore: visualFeaturesScore === null ? null : Math.max(0, Math.min(100, visualFeaturesScore)),
     colorScore: colorScore === null ? null : Math.max(0, Math.min(100, colorScore)),
     brandScore: brandScore === null ? null : Math.max(0, Math.min(100, brandScore)),

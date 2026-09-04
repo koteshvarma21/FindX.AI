@@ -2,6 +2,7 @@ const AI_BASE_URL = process.env.AI_BASE_URL || 'https://api.featherless.ai/v1';
 const AI_API_KEY = process.env.AI_API_KEY;
 const AI_MODEL = process.env.AI_MODEL || 'Qwen/Qwen3-32B';
 const AI_VISION_MODEL = process.env.AI_VISION_MODEL;
+const AI_REQUEST_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS || 15000);
 const AI_EMBEDDING_MODEL = process.env.AI_EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B';
 
 function normalizeText(value = '') {
@@ -74,8 +75,10 @@ function extractKnownFacts(originalDescription = '', conversation = []) {
 }
 
 function normalizeExtractedDetails(details = {}, fallback = {}) {
+  const features = details.uniqueFeatures || details.unique_features;
+  const cleanedFeatures = Array.isArray(features) ? features.map((feature) => String(feature).trim()).filter(Boolean) : fallback.uniqueFeatures || [];
   return {
-    itemName: details.itemName || fallback.itemName || '',
+    itemName: details.itemName || details.item_name || fallback.itemName || '',
     category: details.category || fallback.category || '',
     color: details.color || fallback.color || '',
     brand: details.brand || fallback.brand || '',
@@ -83,9 +86,7 @@ function normalizeExtractedDetails(details = {}, fallback = {}) {
     material: details.material || fallback.material || '',
     model: details.model || fallback.model || '',
     visualDescription: details.visualDescription || details.visual_description || fallback.visualDescription || '',
-    uniqueFeatures: Array.isArray(details.uniqueFeatures)
-      ? details.uniqueFeatures.filter(Boolean).map(String)
-      : fallback.uniqueFeatures || [],
+    uniqueFeatures: [...new Map(cleanedFeatures.map((feature) => [feature.toLowerCase(), feature])).values()],
   };
 }
 
@@ -104,7 +105,10 @@ function buildFallbackQuestion(originalDescription = '', conversation = []) {
 async function callFeatherless(path, payload) {
   if (!AI_API_KEY) return null;
 
+  let timeout;
   try {
+    const controller = new AbortController();
+    timeout = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
     const response = await fetch(`${AI_BASE_URL}${path}`, {
       method: 'POST',
       headers: {
@@ -112,7 +116,9 @@ async function callFeatherless(path, payload) {
         Authorization: `Bearer ${AI_API_KEY}`,
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const text = await response.text();
@@ -121,7 +127,8 @@ async function callFeatherless(path, payload) {
 
     return await response.json();
   } catch (error) {
-    console.error('Featherless request failed:', error.message);
+    if (timeout) clearTimeout(timeout);
+    console.error('Featherless request failed:', error.name === 'AbortError' ? 'request timed out' : error.message);
     return null;
   }
 }

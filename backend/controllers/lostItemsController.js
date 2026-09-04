@@ -1,19 +1,8 @@
 // controllers/lostItemsController.js
 const User = require('../models/User');
 const LostItem = require('../models/LostItem');
+const GeneratedImage = require('../models/GeneratedImage');
 const { runMatchingForLostItem } = require('./matchesController');
-
-// Finds a user by email, or creates one on the fly.
-// This project has no login system yet, so the reporter's email doubles as their identity.
-// findOneAndUpdate + upsert does this atomically in one round trip to MongoDB.
-async function findOrCreateUserByEmail(email, name) {
-  const user = await User.findOneAndUpdate(
-    { email: email.toLowerCase() },
-    { $setOnInsert: { email: email.toLowerCase(), name: name || undefined, role: 'reporter' } },
-    { upsert: true, new: true }
-  );
-  return user._id;
-}
 
 // POST /api/lost-items
 // (validation already ran in middleware/validateLostItem.js before this fires)
@@ -23,6 +12,15 @@ async function createLostItem(req, res) {
   try {
     const user = await User.findById(req.userId);
     if (!user) return res.status(401).json({ success: false, errors: ['Authenticated user not found.'] });
+
+    let generatedImage;
+    if (body.generated_image) {
+      if (!require('mongoose').isValidObjectId(body.generated_image)) {
+        return res.status(400).json({ success: false, errors: ['generated_image must be a valid ID.'] });
+      }
+      generatedImage = await GeneratedImage.findOne({ _id: body.generated_image, user: req.userId, confirmed: true });
+      if (!generatedImage) return res.status(403).json({ success: false, errors: ['Generated image is not owned by this user or is not confirmed.'] });
+    }
 
     const lostItem = await LostItem.create({
       user: req.userId,
@@ -37,18 +35,26 @@ async function createLostItem(req, res) {
       unique_features: body.unique_features || [],
       visual_description: body.visual_description || undefined,
       original_image_url: body.original_image_url || undefined,
-      ai_generated_image_url: body.ai_generated_image_url || undefined,
-      generated_image: body.generated_image || undefined,
-      user_confidence_score: body.user_confidence_score,
+      ai_generated_image_url: generatedImage?.imageUrl,
+      generated_image: generatedImage?._id,
+      user_confidence_score: generatedImage?.accuracy,
       last_seen_location: body.last_seen_location,
       last_seen_lat: body.last_seen_lat,
       last_seen_lng: body.last_seen_lng,
+      last_seen_at: body.last_seen_at || undefined,
       discovered_lost_at: body.discovered_lost_at,
       travel_path: body.travel_path || [],
       contact_email: user.email,
     });
 
-    const matchingResults = await runMatchingForLostItem(lostItem._id);
+    let matchingResults = [];
+    let matchingStatus = 'completed';
+    try {
+      matchingResults = await runMatchingForLostItem(lostItem._id);
+    } catch (matchingError) {
+      matchingStatus = 'failed';
+      console.error('Lost-item matching failed after save:', matchingError.message);
+    }
 
     return res.status(201).json({
       success: true,
@@ -59,6 +65,7 @@ async function createLostItem(req, res) {
         status: lostItem.status,
         created_at: lostItem.created_at,
         matches: matchingResults,
+        matchingStatus,
       },
     });
   } catch (err) {

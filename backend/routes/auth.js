@@ -12,6 +12,12 @@ function signToken(user) {
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password, fullName, phone } = req.body;
+    if ([username, email, password].some((value) => typeof value !== 'string') || (fullName && typeof fullName !== 'string')) {
+      return res.status(400).json({ message: 'Invalid registration fields' });
+    }
+    if (email.length > 254 || username.length > 30 || password.length > 128 || (fullName && fullName.length > 100)) {
+      return res.status(400).json({ message: 'Registration field exceeds maximum length' });
+    }
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'username, email, and password are required' });
     }
@@ -32,27 +38,11 @@ router.post('/register', async (req, res) => {
       $or: [{ username: normalizedUsername }, { email: normalizedEmail }],
     });
 
-    if (existing && existing.password) {
+    if (existing) {
       return res.status(409).json({ message: 'Username or email is already taken' });
     }
 
-    if (!existing) {
-      existing = await User.create({
-        username: normalizedUsername,
-        email: normalizedEmail,
-        password,
-        fullName,
-        name: fullName,
-        phone,
-      });
-    } else {
-      existing.username = normalizedUsername;
-      existing.password = password;
-      existing.fullName = fullName || existing.fullName;
-      existing.name = fullName || existing.name;
-      existing.phone = phone || existing.phone;
-      await existing.save();
-    }
+    existing = await User.create({ username: normalizedUsername, email: normalizedEmail, password, fullName, name: fullName, phone });
 
     const user = await User.findById(existing._id);
     res.status(201).json({ token: signToken(user), user });

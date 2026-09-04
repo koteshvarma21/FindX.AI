@@ -32,5 +32,7 @@ const matchSchema = new mongoose.Schema(
 );
 
 matchSchema.index({ lost_item: 1, found_item: 1 }, { unique: true, sparse: true });
+matchSchema.index({ lost_item: 1, overall_score: -1 });
+matchSchema.index({ found_item: 1 });
 
 module.exports = mongoose.model('Match', matchSchema);

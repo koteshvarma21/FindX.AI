@@ -13,6 +13,7 @@ function isValidEmail(v) {
 
 function isValidLatLng(lat, lng) {
   if (lat === undefined && lng === undefined) return true; // both optional
+  if (lat === undefined || lng === undefined) return false;
   const latNum = Number(lat);
   const lngNum = Number(lng);
   return (
@@ -34,6 +35,7 @@ function validateLostItem(req, res, next) {
   if (body.unique_features !== undefined && !Array.isArray(body.unique_features)) {
     errors.push('unique_features must be an array of strings.');
   }
+  if (Array.isArray(body.unique_features) && (body.unique_features.length > 20 || body.unique_features.some((feature) => typeof feature !== 'string' || feature.trim().length > 250))) errors.push('unique_features must contain at most 20 strings of 250 characters.');
 
   // Must have SOME way to identify the item: a description (for AI image-gen) or an uploaded image.
   const hasDescription = isNonEmptyString(body.description);
@@ -50,6 +52,9 @@ function validateLostItem(req, res, next) {
     errors.push('last_seen_lat/last_seen_lng must both be valid coordinates if provided.');
   }
 
+  if (body.last_seen_at && Number.isNaN(Date.parse(body.last_seen_at))) {
+    errors.push('last_seen_at must be a valid date/time string (e.g. ISO 8601).');
+  }
   if (body.discovered_lost_at && Number.isNaN(Date.parse(body.discovered_lost_at))) {
     errors.push('discovered_lost_at must be a valid date/time string (e.g. ISO 8601).');
   }
@@ -57,6 +62,7 @@ function validateLostItem(req, res, next) {
   if (body.travel_path !== undefined && !Array.isArray(body.travel_path)) {
     errors.push('travel_path must be an array of { location, time } stops.');
   }
+  if (Array.isArray(body.travel_path) && (body.travel_path.length > 30 || body.travel_path.some((stop) => !stop || typeof stop.location !== 'string' || !stop.location.trim() || stop.location.length > 500))) errors.push('travel_path contains an invalid stop.');
 
   if (
     body.user_confidence_score !== undefined &&

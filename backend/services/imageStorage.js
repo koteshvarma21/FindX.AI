@@ -4,6 +4,10 @@ const crypto = require('crypto');
 
 const uploadDirectory = path.join(__dirname, '..', 'uploads');
 
+function isSafeImageUrl(value) {
+  return /^\/uploads\/[A-Za-z0-9._-]+$/.test(String(value || '')) || /^https:\/\//i.test(String(value || ''));
+}
+
 async function storeDataUrl(dataUrl) {
   if (/^\/uploads\/[A-Za-z0-9._-]+$/.test(String(dataUrl || '')) || /^https?:\/\//i.test(String(dataUrl || ''))) {
     return dataUrl;
@@ -24,4 +28,4 @@ async function storeDataUrl(dataUrl) {
   return `/uploads/${filename}`;
 }
 
-module.exports = { storeDataUrl, uploadDirectory };
+module.exports = { isSafeImageUrl, storeDataUrl, uploadDirectory };
