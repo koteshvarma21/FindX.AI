@@ -4,6 +4,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const locationInput = document.getElementById('last-seen-location');
   const dateInput = document.getElementById('last-seen-date');
   const timeInput = document.getElementById('last-seen-time');
+  const travelPathInput = document.getElementById('travel-path');
+  const locationButton = document.getElementById('use-location-btn');
+  const locationStatus = document.getElementById('location-status');
+  let coordinates = {};
+
+  locationButton.addEventListener('click', () => {
+    if (!navigator.geolocation) { locationStatus.textContent = 'Location unavailable; text location will be used.'; return; }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => { coordinates = { last_seen_lat: coords.latitude, last_seen_lng: coords.longitude }; locationStatus.textContent = 'Location added.'; },
+      () => { locationStatus.textContent = 'Location unavailable; text location will be used.'; }
+    );
+  });
 
   const savedDescription = sessionStorage.getItem('findx-final-description') || 'No description saved yet.';
   const extractedDetails = JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}');
@@ -48,6 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
       generated_image: sessionStorage.getItem('findx-generated-image-id') || undefined,
       contact_email: sessionStorage.getItem('findx-user-email') || undefined,
       last_seen_location: location,
+      ...coordinates,
+      travel_path: travelPathInput.value.split(',').map((place) => place.trim()).filter(Boolean).map((place) => ({ location: place })),
+      user_confidence_score: sessionStorage.getItem('findx-image-confidence') ? Number(sessionStorage.getItem('findx-image-confidence')) : undefined,
       discovered_lost_at: discoveredLostAt || new Date().toISOString(),
       reporter_name: sessionStorage.getItem('findx-user-name') || 'Reporter',
     };
@@ -66,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const lostItemId = result.data?.lostItemId || result.data?.lost_id || result.data?._id;
       sessionStorage.setItem('findx-lost-item-id', lostItemId || '');
+      ['findx-search-mode', 'findx-item-name', 'findx-item-description', 'findx-original-image', 'findx-extracted-details', 'findx-final-description', 'findx-final-image', 'findx-generated-image-id', 'findx-image-confidence'].forEach((key) => sessionStorage.removeItem(key));
       window.location.href = `matches.html?lostItemId=${encodeURIComponent(lostItemId || '')}`;
     } catch (error) {
       console.error(error);

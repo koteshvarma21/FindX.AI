@@ -54,9 +54,9 @@
     </div>
 
     <div class="match-row" id="match-row">
-      <button type="button" class="match-btn" data-match="not-close">Not close</button>
-      <button type="button" class="match-btn" data-match="somewhat">Somewhat close</button>
-      <button type="button" class="match-btn" data-match="very-close">Very close</button>
+      <label for="accuracy-range">Accuracy: <output id="accuracy-value">0%</output></label>
+      <input type="range" id="accuracy-range" min="0" max="100" value="0">
+      <button type="button" class="match-btn" id="accuracy-submit">Use this image</button>
     </div>
 
     <div class="continue-row" id="continue-row">

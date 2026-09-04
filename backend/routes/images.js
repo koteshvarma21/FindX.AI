@@ -1,7 +1,7 @@
 const express = require('express');
 const OpenAI = require('openai');
 const GeneratedImage = require('../models/GeneratedImage');
-const { optionalAuth } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { storeDataUrl } = require('../services/imageStorage');
 
 const router = express.Router();
@@ -12,7 +12,7 @@ function buildPrompt(description, improvements = []) {
   return prompt;
 }
 
-router.post('/generate', optionalAuth, async (req, res) => {
+router.post('/generate', requireAuth, async (req, res) => {
   try {
     const { description, improvements = [] } = req.body;
     if (!description || !description.trim()) return res.status(400).json({ message: 'description is required' });
@@ -27,7 +27,7 @@ router.post('/generate', optionalAuth, async (req, res) => {
   }
 });
 
-router.post('/upload', optionalAuth, async (req, res) => {
+router.post('/upload', requireAuth, async (req, res) => {
   try {
     const imageUrl = await storeDataUrl(req.body?.image);
     if (!imageUrl || imageUrl === req.body?.image) return res.status(400).json({ message: 'A valid image data URL is required' });
@@ -38,7 +38,7 @@ router.post('/upload', optionalAuth, async (req, res) => {
   }
 });
 
-router.post('/confirm', optionalAuth, async (req, res) => {
+router.post('/confirm', requireAuth, async (req, res) => {
   try {
     const { description, improvements = [], imageUrl, accuracy } = req.body;
     if (!description || !imageUrl || accuracy === undefined) {

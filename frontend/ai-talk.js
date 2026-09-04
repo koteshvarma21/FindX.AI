@@ -7,15 +7,8 @@
      POST /api/images/confirm   -> saves the description + image
                                     once the user says it's close enough
 
-   Notes on scope:
-   - There is currently no image-analysis (vision) endpoint on the
-     backend, so an uploaded photo can't be auto-described. If the
-     user arrived via "Upload photo" on the search page, we say so
-     up front and fall back to describing the item in words — the
-     same flow as "Describe item".
-   - Step 3 ("Last seen & location") doesn't have a page yet, so
-     "Continue" hands off via sessionStorage and links to
-     last-seen.html as a placeholder. That's the next page to build.
+   Uploaded photos are analyzed by the backend when a vision-capable
+   provider model is configured. Image generation remains optional.
    ============================================================ */
 
 const API_BASE = window.FINDX_API_BASE || 'http://localhost:5000/api';
@@ -50,9 +43,14 @@ document.addEventListener('DOMContentLoaded', () => {
     improvements: [],
     conversation: [],
     extractedDetails: {
+      itemName: '',
       category: '',
       color: '',
       brand: '',
+      size: '',
+      material: '',
+      model: '',
+      visualDescription: '',
       uniqueFeatures: [],
     },
   };
@@ -100,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function askQuestion({ prompt, chips, placeholder, onAnswer }) {
     addMessage(prompt, 'ai');
-    state.conversation.push({ role: 'assistant', content: prompt });
     state.conversation.push({ role: 'assistant', content: prompt });
     if (chips && chips.length) showChips(chips);
     if (placeholder) chatInput.placeholder = placeholder;
@@ -150,11 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch(`${API_BASE}/ai/follow-up`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(payload),
       });
       const body = await res.json();
-      if (!res.ok || !body?.question) {
+      if (!res.ok || (!body?.question && !body?.readyToGenerate)) {
         return null;
       }
       return body;
@@ -165,11 +162,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function mergeExtractedDetails(details = {}) {
+    const previous = state.extractedDetails;
+    const value = (candidate, existing) => typeof candidate === 'string' && candidate.trim() ? candidate.trim() : existing;
     state.extractedDetails = {
-      ...state.extractedDetails,
-      ...details,
+      itemName: value(details.itemName, previous.itemName),
+      category: value(details.category, previous.category),
+      color: value(details.color, previous.color),
+      brand: value(details.brand, previous.brand),
+      size: value(details.size, previous.size),
+      material: value(details.material, previous.material),
+      model: value(details.model, previous.model),
+      visualDescription: value(details.visualDescription, previous.visualDescription),
       uniqueFeatures: [...new Set([
-        ...state.extractedDetails.uniqueFeatures,
+        ...previous.uniqueFeatures,
         ...(Array.isArray(details.uniqueFeatures) ? details.uniqueFeatures : []),
       ])],
     };
@@ -182,14 +187,11 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------------- conversation flow ---------------- */
 
   function buildDescription() {
-    const parts = [state.itemName || 'an item'];
-    if (state.color) parts.push(`${state.color} in color`);
-    if (state.brand) parts.push(`brand/make: ${state.brand}`);
-    if (state.extractedDetails.uniqueFeatures.length) {
-      parts.push(`identifying features: ${state.extractedDetails.uniqueFeatures.join(', ')}`);
-    }
-    const base = parts.join(', ');
-    return [state.description, base, state.details].filter(Boolean).join('. ');
+    const details = state.extractedDetails;
+    const parts = [state.description, state.itemName, details.category, details.color, details.brand,
+      details.size, details.material, details.model, details.visualDescription,
+      details.uniqueFeatures.join(', '), state.details, ...state.improvements];
+    return [...new Set(parts.map((part) => String(part || '').trim()).filter(Boolean))].join('. ');
   }
 
   async function runGeneration() {
@@ -199,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const { imageUrl } = await generateImage(buildDescription(), state.improvements);
       state.imageUrl = imageUrl;
-      vizImage.src = imageUrl;
+      vizImage.src = window.resolveFindxAssetUrl ? window.resolveFindxAssetUrl(imageUrl) : imageUrl;
       vizImage.style.display = 'block';
       vizSummary.textContent = buildDescription();
       vizCard.style.display = 'block';
@@ -216,13 +218,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  matchRow.querySelectorAll('.match-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      matchRow.querySelectorAll('.match-btn').forEach((b) => b.classList.remove('is-selected'));
-      btn.classList.add('is-selected');
-
-      const accuracyMap = { 'not-close': 25, somewhat: 60, 'very-close': 90 };
-      const accuracy = accuracyMap[btn.dataset.match] ?? 50;
+  const accuracyRange = document.getElementById('accuracy-range');
+  const accuracyValue = document.getElementById('accuracy-value');
+  const accuracySubmit = document.getElementById('accuracy-submit');
+  accuracyRange.addEventListener('input', () => { accuracyValue.textContent = `${accuracyRange.value}%`; });
+  accuracySubmit.addEventListener('click', async () => {
+      const accuracy = Number(accuracyRange.value);
+      sessionStorage.setItem('findx-image-confidence', String(accuracy));
 
       if (accuracy >= 60) {
         try {
@@ -250,7 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
           },
         });
       }
-    });
   });
 
   continueBtn.addEventListener('click', () => {
@@ -258,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.setItem('findx-final-image', state.imageUrl);
     sessionStorage.setItem('findx-extracted-details', JSON.stringify(state.extractedDetails));
     sessionStorage.setItem('findx-generated-image-id', state.generatedImageId || '');
-    // Step 3 (last seen & location) isn't built yet — this is the next page to add.
     window.location.href = 'last-seen.html';
   });
 
@@ -303,56 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
       chips: [],
       placeholder: nextStep.placeholder || 'Type your answer…',
       onAnswer: handleUserAnswer,
-    });
-  }
-
-  function askItemName() {
-    askAdaptiveQuestion({
-      prompt: state.mode === 'upload' ? "What's the item called?" : "What's the item called?",
-      placeholder: 'e.g. backpack, water bottle…',
-      onAnswer: (text) => {
-        const clean = text.trim();
-        if (clean) state.itemName = clean;
-        askDetails();
-      },
-    });
-  }
-
-  function askDetails() {
-    askAdaptiveQuestion({
-      prompt: 'Any distinguishing details — brand, marks, condition?',
-      placeholder: 'Type details, or "skip"',
-      onAnswer: (text) => {
-        const answer = text.trim();
-        if (answer && !/^skip$/i.test(answer)) state.details = answer;
-        askColor();
-      },
-    });
-  }
-
-  function askColor() {
-    askAdaptiveQuestion({
-      prompt: 'What color is it, mostly?',
-      chips: ['Black', 'White', 'Blue', 'Red', 'Green', 'Other'],
-      placeholder: 'Or type a color…',
-      onAnswer: (text) => {
-        const answer = text.trim();
-        if (answer) state.color = answer;
-        askBrand();
-      },
-    });
-  }
-
-  function askBrand() {
-    askAdaptiveQuestion({
-      prompt: 'Any brand or make? (Skip if not sure)',
-      chips: ['Not sure / skip'],
-      placeholder: 'Type a brand…',
-      onAnswer: (text) => {
-        const answer = text.trim();
-        if (answer && !/skip|not sure/i.test(answer)) state.brand = answer;
-        runGeneration();
-      },
     });
   }
 

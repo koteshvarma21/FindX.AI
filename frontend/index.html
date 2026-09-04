@@ -100,34 +100,9 @@
       </button>
     </form>
 
-    <!-- Shared: OTP verification -->
-    <form class="field-list auth-step is-hidden" data-step="otp" id="otp-step">
-      <p class="otp-copy">We've sent a 6-digit code to <strong id="otp-email-display"></strong>.</p>
-
-      <div class="otp-boxes" id="otp-boxes">
-        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 1">
-        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 2">
-        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 3">
-        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 4">
-        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 5">
-        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 6">
-      </div>
-      <span class="field-error" id="otp-error"></span>
-
-      <button type="submit" class="btn-primary" id="verify-btn">
-        <span class="btn-spark">✨</span> Verify &amp; continue
-      </button>
-
-      <p class="resend-row">
-        <button type="button" class="link-btn" id="resend-btn" disabled>Resend code (<span id="resend-timer">60</span>s)</button>
-        <button type="button" class="link-btn" id="back-btn">Go back</button>
-      </p>
-    </form>
-
     <p class="auth-switch" id="auth-switch-login">New to FindX.AI? <button type="button" class="link-btn" data-auth-tab="signup">Create an account</button></p>
     <p class="auth-switch is-hidden" id="auth-switch-signup">Already have an account? <button type="button" class="link-btn" data-auth-tab="login">Log in</button></p>
 
-    <p class="auth-footnote">OTP delivery and verification for this demo is <strong>Not Available</strong>. Swap in your API key in <code>auth.js</code> to go live.</p>
   </div>
 
 </main>

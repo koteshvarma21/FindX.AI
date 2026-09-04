@@ -5,15 +5,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileChosen = document.getElementById('found-file-chosen');
   const form = document.getElementById('found-form');
   const success = document.getElementById('found-success');
+  let coordinates = {};
+  document.getElementById('use-found-location-btn').addEventListener('click', () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      coordinates = { found_lat: coords.latitude, found_lng: coords.longitude };
+      document.getElementById('found-location-status').textContent = 'Location added.';
+    }, () => { document.getElementById('found-location-status').textContent = 'Location unavailable; text location will be used.'; });
+  });
 
   function showFile(file) {
     if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      fileChosen.textContent = 'Use a JPG, PNG, or WEBP image up to 10 MB.';
+      fileChosen.style.display = 'block';
+      return;
+    }
     fileChosen.textContent = `Selected: ${file.name}`;
     fileChosen.style.display = 'block';
   }
 
   async function uploadImage(file) {
     if (!file) return '';
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) throw new Error('Use a JPG, PNG, or WEBP image up to 10 MB.');
     const image = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
@@ -109,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
           contact_email: sessionStorage.getItem('findx-user-email'),
           reporter_name: name,
           image_url: uploaded.imageUrl,
+          ...coordinates,
           category: extractedDetails.category,
           color: extractedDetails.color,
           brand: extractedDetails.brand,

@@ -86,6 +86,11 @@ backend/
 | GET    | `/api/matches/lost/:lostItemId` | Get owned report matches          |
 | PATCH  | `/api/matches/:matchId/status` | Confirm or reject an owned match  |
 
+AI uses `AI_MODEL` for text, `AI_VISION_MODEL` for multimodal image analysis, and
+`AI_EMBEDDING_MODEL` for matching embeddings. Representative images use the
+optional `OPENAI_API_KEY`; uploaded/generated files are stored locally under
+`backend/uploads/` and MongoDB stores only their URLs.
+
 | Method | Route                  | Purpose                                 |
 |--------|-------------------------|------------------------------------------|
 | GET    | `/api/health`           | Liveness + DB connection check           |

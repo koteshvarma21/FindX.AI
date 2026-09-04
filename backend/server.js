@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 
 const lostItemsRouter = require('./routes/lostItems');
@@ -15,6 +16,8 @@ const { uploadDirectory } = require('./services/imageStorage');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+const expensiveLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 
 // --- Middleware ---
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
@@ -27,8 +30,12 @@ app.use(
     origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
   })
 );
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '15mb' }));
 app.use('/uploads', express.static(uploadDirectory));
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/ai', expensiveLimiter);
+app.use('/api/images', expensiveLimiter);
 
 // --- Routes ---
 app.get('/api/health', (req, res) => {

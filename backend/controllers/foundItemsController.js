@@ -74,6 +74,7 @@ async function getFoundItems(req, res) {
   try {
     const items = await FoundItem
       .find()
+      .select('_id item_name description category color brand image_url found_location found_at status created_at')
       .sort({ created_at: -1 });
 
     res.json({
@@ -94,7 +95,7 @@ async function getFoundItems(req, res) {
 async function getFoundItemById(req, res) {
   try {
     const item =
-      await FoundItem.findById(req.params.id);
+      await FoundItem.findById(req.params.id).select('_id item_name description category color brand image_url found_location found_at status created_at');
 
     if (!item) {
       return res.status(404).json({

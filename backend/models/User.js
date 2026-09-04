@@ -1,6 +1,5 @@
 // models/User.js
-// A person interacting with the platform — either someone reporting an item
-// or a security account. No login system yet, so email is the identity key.
+// A person interacting with the platform, authenticated through JWT.
 
 const mongoose = require('mongoose');
 

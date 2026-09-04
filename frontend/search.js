@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showFile(file) {
     if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      fileChosen.textContent = 'Use a JPG, PNG, or WEBP image up to 10 MB.';
+      fileChosen.style.color = '#B0392E';
+      fileChosen.style.display = 'block';
+      return;
+    }
     fileChosen.textContent = `Selected: ${file.name}`;
     fileChosen.style.color = '';
     fileChosen.style.display = 'block';
@@ -94,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       sessionStorage.setItem('findx-search-mode', 'upload');
       const file = fileInput.files[0];
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) return;
       const reader = new FileReader();
       reader.onload = async () => {
         try {

@@ -17,6 +17,7 @@ const matchSchema = new mongoose.Schema(
     color_score: { type: Number, min: 0, max: 100, default: null },
     brand_score: { type: Number, min: 0, max: 100, default: null },
     unique_features_score: { type: Number, min: 0, max: 100, default: null },
+    visual_feature_score: { type: Number, min: 0, max: 100, default: null },
     overall_score: { type: Number, min: 0, max: 100, default: 0 },
     ai_reason: { type: String, trim: true },
     ai_model: { type: String, trim: true },

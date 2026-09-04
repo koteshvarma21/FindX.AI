@@ -1,13 +1,24 @@
 const { getEmbedding } = require('./aiService');
+const embeddingCache = new Map();
+
+async function getCachedEmbedding(text) {
+  const key = String(text || '').trim();
+  if (!key) return null;
+  if (embeddingCache.has(key)) return embeddingCache.get(key);
+  const embedding = await getEmbedding(key);
+  embeddingCache.set(key, embedding);
+  return embedding;
+}
 
 const MATCHING_WEIGHTS = {
-  semantic: 0.4,
+  semantic: 0.3,
+  visualFeatures: 0.15,
   category: 0.15,
   color: 0.1,
   brand: 0.1,
   uniqueFeatures: 0.1,
-  location: 0.1,
-  time: 0.05,
+  location: 0.07,
+  time: 0.03,
 };
 
 const MATCH_THRESHOLDS = {
@@ -164,6 +175,11 @@ function buildMatchingText(item = {}) {
   ].filter(Boolean).join(' ');
 }
 
+function buildVisualMatchingText(item = {}) {
+  return [item.visual_description, item.color, item.brand, item.size, item.material, item.model,
+    ...(Array.isArray(item.unique_features) ? item.unique_features : [])].filter(Boolean).join(' ');
+}
+
 function compareLocation(lostLocation = '', foundLocation = '') {
   const left = normalizeText(lostLocation);
   const right = normalizeText(foundLocation);
@@ -235,8 +251,8 @@ async function computeSemanticSimilarity(descriptionA, descriptionB) {
   const lexicalScore = union.size === 0 ? 0 : sharedTokens.length / union.size;
   const fallback = Math.min(100, Math.max(0, Math.round((lexicalScore * 100) + (sharedTokens.length * 5))));
 
-  const embeddingA = await getEmbedding(combinedA);
-  const embeddingB = await getEmbedding(combinedB);
+  const embeddingA = await getCachedEmbedding(combinedA);
+  const embeddingB = await getCachedEmbedding(combinedB);
   if (!embeddingA || !embeddingB) {
     return fallback;
   }
@@ -244,6 +260,16 @@ async function computeSemanticSimilarity(descriptionA, descriptionB) {
   const cosine = cosineSimilarity(embeddingA, embeddingB);
   const combined = Math.round((lexicalScore * 0.5 + cosine * 0.5) * 100);
   return Math.max(0, Math.min(100, combined));
+}
+
+async function computeVisualFeatureScore(lostItem, foundItem) {
+  const left = buildVisualMatchingText(lostItem);
+  const right = buildVisualMatchingText(foundItem);
+  if (!left || !right) return null;
+  const leftEmbedding = await getCachedEmbedding(left);
+  const rightEmbedding = await getCachedEmbedding(right);
+  if (!leftEmbedding || !rightEmbedding) return Math.round(jaccardSimilarity(left, right) * 100);
+  return Math.round(cosineSimilarity(leftEmbedding, rightEmbedding) * 100);
 }
 
 function buildAiReason(result) {
@@ -259,15 +285,16 @@ function buildAiReason(result) {
   return `${result.overallScore >= MATCH_THRESHOLDS.strong ? 'Strong match' : 'Possible match'} because ${reasons.join(', ')}.`;
 }
 
-async function scoreLostFoundMatch(lostItem = {}, foundItem = {}) {
+async function scoreLostFoundMatch(lostItem = {}, foundItem = {}, options = {}) {
   const semanticScore = await computeSemanticSimilarity(lostItem, foundItem);
+  const visualFeaturesScore = options.visualFeaturesScore ?? await computeVisualFeatureScore(lostItem, foundItem);
   const locationScore = compareLocationItems(lostItem, foundItem);
   const timeScore = compareTime(lostItem.discovered_lost_at || lostItem.created_at, foundItem.found_at || foundItem.created_at);
   const categoryScore = compareCategory(lostItem, foundItem);
   const colorScore = compareColor(lostItem, foundItem);
   const brandScore = compareBrand(lostItem, foundItem);
   const uniqueFeaturesScore = compareUniqueFeatures(lostItem, foundItem);
-  const available = { semantic: semanticScore, category: categoryScore, color: colorScore, brand: brandScore, uniqueFeatures: uniqueFeaturesScore, location: locationScore, time: timeScore };
+  const available = { semantic: semanticScore, visualFeatures: visualFeaturesScore, category: categoryScore, color: colorScore, brand: brandScore, uniqueFeatures: uniqueFeaturesScore, location: locationScore, time: timeScore };
   const activeWeight = Object.keys(available).reduce((sum, key) => sum + (available[key] === null ? 0 : MATCHING_WEIGHTS[key]), 0) || 1;
 
   const overallScore = Math.round(
@@ -286,6 +313,7 @@ async function scoreLostFoundMatch(lostItem = {}, foundItem = {}) {
     locationScore: Math.max(0, Math.min(100, locationScore)),
     timeScore: Math.max(0, Math.min(100, timeScore)),
     categoryScore: Math.max(0, Math.min(100, categoryScore)),
+    visualFeaturesScore: visualFeaturesScore === null ? null : Math.max(0, Math.min(100, visualFeaturesScore)),
     colorScore: colorScore === null ? null : Math.max(0, Math.min(100, colorScore)),
     brandScore: brandScore === null ? null : Math.max(0, Math.min(100, brandScore)),
     uniqueFeaturesScore: uniqueFeaturesScore === null ? null : Math.max(0, Math.min(100, uniqueFeaturesScore)),
@@ -309,4 +337,6 @@ module.exports = {
   compareTime,
   scoreLostFoundMatch,
   buildMatchingText,
+  buildVisualMatchingText,
+  computeVisualFeatureScore,
 };

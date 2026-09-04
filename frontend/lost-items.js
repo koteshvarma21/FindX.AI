@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const grid = document.getElementById('lost-items-grid');
   const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-  const imageUrl = (value) => value && (/^https?:\/\//i.test(value) || value.startsWith('/')) ? value : '';
+  const imageUrl = (value) => window.resolveFindxAssetUrl ? window.resolveFindxAssetUrl(value) : value;
 
   try {
     const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/lost-items`);

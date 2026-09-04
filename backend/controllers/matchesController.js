@@ -32,14 +32,12 @@ async function runMatchingForLostItem(lostItemId) {
       color_score: matchData.colorScore,
       brand_score: matchData.brandScore,
       unique_features_score: matchData.uniqueFeaturesScore,
-      match_status: 'pending',
+      visual_feature_score: matchData.visualFeaturesScore,
     };
 
-    const document = await Match.findOneAndUpdate(
-      { lost_item: lostItem._id, found_item: foundItem._id },
-      { $set: payload },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    const existing = await Match.findOne({ lost_item: lostItem._id, found_item: foundItem._id }).select('match_status');
+    if (!existing) payload.match_status = 'pending';
+    const document = await Match.findOneAndUpdate({ lost_item: lostItem._id, found_item: foundItem._id }, { $set: payload }, { upsert: true, new: true, setDefaultsOnInsert: true });
 
     results.push(document);
   }
@@ -105,14 +103,12 @@ async function runMatchingForFoundItem(foundItemId) {
       color_score: matchData.colorScore,
       brand_score: matchData.brandScore,
       unique_features_score: matchData.uniqueFeaturesScore,
-      match_status: 'pending',
+      visual_feature_score: matchData.visualFeaturesScore,
     };
 
-    const document = await Match.findOneAndUpdate(
-      { lost_item: lostItem._id, found_item: foundItem._id },
-      { $set: payload },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    const existing = await Match.findOne({ lost_item: lostItem._id, found_item: foundItem._id }).select('match_status');
+    if (!existing) payload.match_status = 'pending';
+    const document = await Match.findOneAndUpdate({ lost_item: lostItem._id, found_item: foundItem._id }, { $set: payload }, { upsert: true, new: true, setDefaultsOnInsert: true });
 
     results.push(document);
   }
@@ -127,14 +123,17 @@ async function getMatchesForLostItem(req, res) {
       return res.status(400).json({ success: false, message: 'lostItemId is required' });
     }
 
+    const lostItem = await LostItem.findById(lostItemId).select('user');
+    if (!lostItem) return res.status(404).json({ success: false, message: 'Lost item not found' });
+    if (String(lostItem.user) !== String(req.userId)) {
+      return res.status(403).json({ success: false, message: 'You cannot view these matches' });
+    }
+
     const matches = await Match.find({ lost_item: lostItemId })
       .populate('lost_item')
       .populate('found_item')
       .sort({ overall_score: -1, created_at: -1 });
 
-    if (matches.length && String(matches[0].lost_item.user) !== String(req.userId)) {
-      return res.status(403).json({ success: false, message: 'You cannot view these matches' });
-    }
     return res.json({
       success: true,
       data: matches,
@@ -168,6 +167,11 @@ async function runMatchesForLostItem(req, res) {
 async function runMatchesForFoundItem(req, res) {
   try {
     const { foundItemId } = req.params;
+    const foundItem = await FoundItem.findById(foundItemId).select('user');
+    if (!foundItem) return res.status(404).json({ success: false, message: 'Found item not found' });
+    if (String(foundItem.user) !== String(req.userId)) {
+      return res.status(403).json({ success: false, message: 'You cannot run matching for this report' });
+    }
     const results = await runMatchingForFoundItem(foundItemId);
 
     return res.json({

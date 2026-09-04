@@ -1,6 +1,7 @@
 const AI_BASE_URL = process.env.AI_BASE_URL || 'https://api.featherless.ai/v1';
 const AI_API_KEY = process.env.AI_API_KEY;
 const AI_MODEL = process.env.AI_MODEL || 'Qwen/Qwen3-32B';
+const AI_VISION_MODEL = process.env.AI_VISION_MODEL;
 const AI_EMBEDDING_MODEL = process.env.AI_EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B';
 
 function normalizeText(value = '') {
@@ -25,7 +26,7 @@ function toConversationText(conversation = []) {
       return '';
     })
     .filter(Boolean)
-    .join(' ');
+    .join('\n');
 }
 
 function extractKnownFacts(originalDescription = '', conversation = []) {
@@ -171,6 +172,9 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
     };
 
     const data = await callFeatherless('/chat/completions', payload);
+    if (!data) {
+      return { success: true, question: fallbackQuestion, extractedDetails: facts, readyToGenerate: false, usedFallback: true };
+    }
     const raw = data?.choices?.[0]?.message?.content || '';
     let parsed = null;
 
@@ -201,7 +205,7 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
       question,
       extractedDetails,
       readyToGenerate,
-      usedFallback: false,
+      usedFallback: !parsed,
     };
   } catch (_error) {
     return {
@@ -216,18 +220,29 @@ async function getFollowUpQuestion({ originalDescription, conversation = [] }) {
 
 async function analyzeImage(imageData) {
   if (!AI_API_KEY) throw new Error('AI_API_KEY is not configured');
+  if (!AI_VISION_MODEL) throw new Error('AI_VISION_MODEL is not configured');
   const data = await callFeatherless('/chat/completions', {
-    model: AI_MODEL,
+    model: AI_VISION_MODEL,
     messages: [
       { role: 'system', content: 'Analyze the uploaded lost-and-found item image. Return only JSON with itemName, category, color, brand, size, material, model, visualDescription, uniqueFeatures.' },
       { role: 'user', content: [{ type: 'text', text: 'Extract visible identifying details from this item.' }, { type: 'image_url', image_url: { url: imageData } }] },
     ],
     response_format: { type: 'json_object' },
   });
-  const raw = data?.choices?.[0]?.message?.content || '{}';
+  if (!data) throw new Error('Vision provider request failed');
+  const raw = data?.choices?.[0]?.message?.content || '';
   let parsed;
-  try { parsed = JSON.parse(raw); } catch (_error) { throw new Error('Vision provider returned malformed JSON'); }
-  return normalizeExtractedDetails(parsed);
+  try {
+    parsed = JSON.parse(raw);
+  } catch (_error) {
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    const candidate = fenced ? fenced[1] : raw.match(/\{[\s\S]*\}/)?.[0];
+    try { parsed = candidate ? JSON.parse(candidate) : null; } catch (_innerError) { parsed = null; }
+  }
+  if (!parsed || typeof parsed !== 'object') throw new Error('Vision provider returned malformed JSON');
+  const details = normalizeExtractedDetails(parsed);
+  if (!details.category && !details.itemName && !details.visualDescription) throw new Error('Vision provider returned no useful item details');
+  return details;
 }
 
 async function checkAIHealth() {
@@ -251,6 +266,7 @@ async function checkAIHealth() {
 module.exports = {
   AI_BASE_URL,
   AI_MODEL,
+  AI_VISION_MODEL,
   AI_EMBEDDING_MODEL,
   analyzeImage,
   callFeatherless,

@@ -76,7 +76,7 @@ async function getLostItems(req, res) {
   const { status } = req.query;
   try {
     const filter = status ? { status } : {};
-    const items = await LostItem.find(filter).sort({ created_at: -1 });
+    const items = await LostItem.find(filter).select('_id item_name description category color brand original_image_url ai_generated_image_url last_seen_location status created_at').sort({ created_at: -1 });
     return res.json({ success: true, data: items });
   } catch (err) {
     console.error('Error fetching lost items:', err);
@@ -88,7 +88,7 @@ async function getLostItems(req, res) {
 async function getLostItemById(req, res) {
   const { id } = req.params;
   try {
-    const item = await LostItem.findById(id);
+    const item = await LostItem.findById(id).select('_id item_name description category color brand original_image_url ai_generated_image_url last_seen_location status created_at');
     if (!item) {
       return res.status(404).json({ success: false, errors: ['Lost item not found.'] });
     }
