@@ -20,9 +20,9 @@ function toConversationText(conversation = []) {
     .map((entry) => {
       if (typeof entry === 'string') return entry;
       if (entry?.role && entry?.content) return `${entry.role}: ${entry.content}`;
+      if (entry?.question && entry?.answer) return `${entry.question} ${entry.answer}`;
       if (entry?.answer) return entry.answer;
       if (entry?.text) return entry.text;
-      if (entry?.question && entry?.answer) return `${entry.question} ${entry.answer}`;
       if (entry?.question) return entry.question;
       return '';
     })
@@ -264,11 +264,12 @@ async function checkAIHealth() {
   const embedding = embeddingConfigured ? await getEmbedding('FindX health check') : null;
 
   return {
-    success: Boolean(chatResponse && embedding && embedding.length && visionConfigured),
+    success: Boolean(chatResponse && embedding && embedding.length),
     provider: 'Featherless',
     chatConfigured,
     embeddingConfigured,
     visionConfigured,
+    visionWorking: null,
     imageGenerationConfigured: Boolean(process.env.OPENAI_API_KEY),
     chatModel: AI_MODEL,
     embeddingModel: AI_EMBEDDING_MODEL,

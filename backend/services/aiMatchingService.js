@@ -231,20 +231,11 @@ function coordinateDistanceKm(latA, lngA, latB, lngB) {
 function compareLocationItems(lostItem = {}, foundItem = {}) {
   const hasCoordinates = [lostItem.last_seen_lat, lostItem.last_seen_lng, foundItem.found_lat, foundItem.found_lng].every((value) => value !== undefined && value !== null);
   const distance = hasCoordinates ? coordinateDistanceKm(lostItem.last_seen_lat, lostItem.last_seen_lng, foundItem.found_lat, foundItem.found_lng) : null;
-  if (distance !== null) {
-    if (distance <= 0.1) return 100;
-    if (distance <= 0.5) return 90;
-    if (distance <= 1) return 75;
-    if (distance <= 3) return 60;
-    if (distance <= 5) return 40;
-    return 20;
-  }
-  const locations = [
-    lostItem.last_seen_location,
-    ...(Array.isArray(lostItem.travel_path) ? lostItem.travel_path.map((stop) => stop?.location) : []),
-  ].filter(Boolean);
-  if (!locations.length) return null;
-  return Math.max(...locations.map((location) => compareLocation(location, foundItem.found_location)));
+  const scores = [];
+  if (distance !== null) scores.push(distance <= 0.1 ? 100 : distance <= 0.5 ? 90 : distance <= 1 ? 75 : distance <= 3 ? 60 : distance <= 5 ? 40 : 20);
+  if (lostItem.last_seen_location) scores.push(compareLocation(lostItem.last_seen_location, foundItem.found_location));
+  scores.push(...(Array.isArray(lostItem.travel_path) ? lostItem.travel_path.map((stop) => stop?.location).filter(Boolean).map((location) => compareLocation(location, foundItem.found_location)) : []));
+  return scores.length ? Math.max(...scores) : null;
 }
 
 function compareTime(lostDate, foundDate) {
@@ -338,7 +329,7 @@ async function scoreLostFoundMatch(lostItem = {}, foundItem = {}, options = {}) 
 
   return {
     semanticScore: Math.max(0, Math.min(100, semanticScore)),
-    locationScore: Math.max(0, Math.min(100, locationScore)),
+    locationScore: locationScore === null ? null : Math.max(0, Math.min(100, locationScore)),
     timeScore: timeScore === null ? null : Math.max(0, Math.min(100, timeScore)),
     categoryScore: categoryScore === null ? null : Math.max(0, Math.min(100, categoryScore)),
     visualFeaturesScore: visualFeaturesScore === null ? null : Math.max(0, Math.min(100, visualFeaturesScore)),

@@ -65,8 +65,9 @@ app.use(errorHandler);
 
 // --- Connect to MongoDB, then start listening ---
 async function start() {
-  if (!process.env.MONGODB_URI) {
-    console.error('MONGODB_URI is not set. Copy .env.example to .env and fill it in.');
+  const missing = ['MONGODB_URI', 'JWT_SECRET'].filter((key) => !process.env[key]);
+  if (missing.length) {
+    console.error(`${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} not set. Copy .env.example to .env and fill in the required values.`);
     process.exit(1);
   }
 

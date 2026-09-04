@@ -1,10 +1,11 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const grid = document.getElementById('lost-items-grid');
   const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const imageUrl = (value) => window.resolveFindxAssetUrl ? window.resolveFindxAssetUrl(value) : value;
 
   try {
-    const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/lost-items`);
+    const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/lost-items?status=active`);
     const result = await response.json();
 
     if (!response.ok) {

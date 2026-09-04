@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const dropzone = document.getElementById('dropzone');
   const browseBtn = document.getElementById('browse-btn');
   const fileInput = document.getElementById('file-input');

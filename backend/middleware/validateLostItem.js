@@ -26,6 +26,14 @@ function isValidLatLng(lat, lng) {
   );
 }
 
+function isSafeImageUrl(value) {
+  if (typeof value !== 'string') return false;
+  if (/^\/uploads\/[A-Za-z0-9._-]+$/.test(value)) return true;
+  if (!/^https:\/\//i.test(value)) return false;
+  const trustedOrigins = (process.env.TRUSTED_IMAGE_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean);
+  try { return trustedOrigins.includes(new URL(value).origin); } catch (_error) { return false; }
+}
+
 function validateLostItem(req, res, next) {
   const body = req.body;
   const errors = [];
@@ -47,6 +55,8 @@ function validateLostItem(req, res, next) {
   if (!isNonEmptyString(body.last_seen_location)) {
     errors.push('last_seen_location is required.');
   }
+  if (body.original_image_url !== undefined && !isSafeImageUrl(body.original_image_url)) errors.push('original_image_url must be an application-managed image URL.');
+  if (body.ai_generated_image_url !== undefined && !isSafeImageUrl(body.ai_generated_image_url)) errors.push('ai_generated_image_url must be an application-managed image URL.');
 
   if (!isValidLatLng(body.last_seen_lat, body.last_seen_lng)) {
     errors.push('last_seen_lat/last_seen_lng must both be valid coordinates if provided.');

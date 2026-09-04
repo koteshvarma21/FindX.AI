@@ -82,7 +82,7 @@ async function createLostItem(req, res) {
 async function getLostItems(req, res) {
   const { status } = req.query;
   try {
-    const filter = status ? { status } : {};
+    const filter = { status: status || 'active' };
     const items = await LostItem.find(filter).select('_id item_name description category color brand original_image_url ai_generated_image_url last_seen_location status created_at').sort({ created_at: -1 });
     return res.json({ success: true, data: items });
   } catch (err) {

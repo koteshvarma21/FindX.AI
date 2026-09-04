@@ -80,7 +80,7 @@ async function createFoundItem(req, res) {
 
 async function getFoundItems(req, res) {
   try {
-    const filter = req.query.status ? { status: req.query.status } : {};
+    const filter = { status: req.query.status || 'active' };
     const items = await FoundItem
       .find(filter)
       .select('_id item_name description category color brand image_url found_location found_at status created_at')

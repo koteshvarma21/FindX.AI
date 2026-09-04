@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const dropzone = document.getElementById('found-dropzone');
   const browseBtn = document.getElementById('found-browse-btn');
   const fileInput = document.getElementById('found-file-input');
@@ -10,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let coordinates = {};
   let cachedPhoto = null;
   let photoRequest = null;
+  let analysisVersion = 0;
   document.getElementById('use-found-location-btn').addEventListener('click', () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(({ coords }) => {
@@ -59,11 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return { imageUrl: result.imageUrl, imageData: image };
   }
 
-  async function processPhoto(file) {
+  async function processPhoto(file, version) {
     const key = fileKey(file);
     if (!key || cachedPhoto?.key === key) return cachedPhoto;
     fileChosen.textContent = 'Analyzing photo...';
     const uploaded = await uploadImage(file);
+    if (version !== analysisVersion) return null;
     let extractedDetails = {};
     try {
       const analysisResponse = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
@@ -74,12 +77,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const analysis = await analysisResponse.json();
       if (!analysisResponse.ok) throw new Error(analysis.message || 'AI image analysis is unavailable');
       extractedDetails = analysis.extractedDetails || {};
-      prefillFromAnalysis(extractedDetails);
+      if (version === analysisVersion) prefillFromAnalysis(extractedDetails);
       fileChosen.textContent = 'Photo analyzed. You can edit the suggested details.';
     } catch (error) {
       fileChosen.textContent = 'AI photo analysis is unavailable. You can still complete the report manually.';
       console.warn('Found-image analysis unavailable:', error.message);
     }
+    if (version !== analysisVersion) return null;
     cachedPhoto = { key, imageUrl: uploaded.imageUrl, imageData: uploaded.imageData, extractedDetails };
     return cachedPhoto;
   }
@@ -88,7 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!file) return;
     showFile(file);
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) return;
-    photoRequest = processPhoto(file).catch((error) => {
+    const version = ++analysisVersion;
+    cachedPhoto = null;
+    photoRequest = processPhoto(file, version).catch((error) => {
+      if (version !== analysisVersion) return null;
       fileChosen.textContent = error.message || 'Unable to upload image.';
       fileChosen.style.display = 'block';
       throw error;

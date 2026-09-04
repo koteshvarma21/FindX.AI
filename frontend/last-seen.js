@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const form = document.getElementById('last-seen-form');
   const descriptionInput = document.getElementById('final-description');
   const locationInput = document.getElementById('last-seen-location');

@@ -62,6 +62,7 @@ async function aiHealth(req, res) {
       chatConfigured: false,
       embeddingConfigured: false,
       visionConfigured: false,
+      visionWorking: null,
       imageGenerationConfigured: Boolean(process.env.OPENAI_API_KEY),
       message: 'Featherless API request failed',
     });

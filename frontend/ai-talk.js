@@ -13,7 +13,8 @@
 
 const API_BASE = window.FINDX_API_BASE || 'http://localhost:5000/api';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const chatThread = document.getElementById('chat-thread');
   const chipRow = document.getElementById('chip-row');
   const vizCard = document.getElementById('viz-card');
@@ -57,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
     isConfirming: false,
     generatedImageId: '',
   };
+  continueBtn.style.display = 'none';
+  skipImageBtn.style.display = 'none';
   try { mergeExtractedDetails(JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}')); } catch (_error) { }
 
   let answerHandler = null; // (text) => void — set by askQuestion()
@@ -211,6 +214,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function runGeneration() {
     if (state.isGenerating || state.isConfirming) return;
     state.isGenerating = true;
+    state.generatedImageId = '';
+    sessionStorage.removeItem('findx-final-image');
+    sessionStorage.removeItem('findx-generated-image-id');
+    sessionStorage.removeItem('findx-image-confidence');
     matchRow.style.display = 'none';
     continueRow.style.display = 'none';
     accuracySubmit.disabled = true;
@@ -249,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
   accuracySubmit.addEventListener('click', async () => {
       if (state.isGenerating || state.isConfirming) return;
       const accuracy = Number(accuracyRange.value);
-      sessionStorage.setItem('findx-image-confidence', String(accuracy));
 
       if (accuracy >= 60) {
         state.isConfirming = true;
@@ -262,16 +268,30 @@ document.addEventListener('DOMContentLoaded', () => {
             accuracy,
           });
           if (confirmation.generatedImageId) state.generatedImageId = confirmation.generatedImageId;
+          state.imageUrl = confirmation.imageUrl || state.imageUrl;
+          sessionStorage.setItem('findx-image-confidence', String(accuracy));
+          sessionStorage.setItem('findx-final-image', state.imageUrl);
+          sessionStorage.setItem('findx-generated-image-id', state.generatedImageId || '');
           addMessage("Great, I've saved that. Ready to move on?", 'ai');
+          continueBtn.style.display = '';
+          skipImageBtn.style.display = '';
           continueRow.style.display = 'flex';
         } catch (err) {
           addMessage(`Couldn't save that (${err.message}). Please retry the confirmation.`, 'ai');
+          continueBtn.style.display = 'none';
+          skipImageBtn.style.display = '';
+          continueRow.style.display = 'flex';
           matchRow.style.display = 'flex';
         } finally {
           state.isConfirming = false;
           accuracySubmit.disabled = false;
         }
       } else {
+        state.imageUrl = '';
+        state.generatedImageId = '';
+        sessionStorage.removeItem('findx-final-image');
+        sessionStorage.removeItem('findx-generated-image-id');
+        sessionStorage.removeItem('findx-image-confidence');
         matchRow.style.display = 'none';
         askQuestion({
           prompt: "No worries — what should I change? (e.g. color, size, a logo I got wrong)",
@@ -298,6 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('findx-final-image');
     sessionStorage.removeItem('findx-generated-image-id');
     sessionStorage.removeItem('findx-image-confidence');
+    continueBtn.style.display = '';
+    skipImageBtn.style.display = '';
     vizCard.style.display = 'none';
     matchRow.style.display = 'none';
     continueRow.style.display = 'flex';
@@ -332,8 +354,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function askAdaptiveQuestion(nextStep) {
+    let activePrompt = nextStep.initialQuestion !== undefined ? nextStep.initialQuestion : nextStep.prompt;
+    function applyManualAnswer(prompt, text) {
+      const question = String(prompt || '').toLowerCase();
+      const answer = String(text || '').trim();
+      if (!answer) return;
+      if (question.includes('item') || question.includes('kind of')) {
+        state.itemName = state.itemName || answer;
+        state.extractedDetails.itemName = state.extractedDetails.itemName || answer;
+        state.extractedDetails.category = state.extractedDetails.category || answer;
+      } else if (question.includes('color')) {
+        state.color = state.color || answer;
+        state.extractedDetails.color = state.extractedDetails.color || answer;
+      } else if (question.includes('brand') || question.includes('maker')) {
+        state.brand = state.brand || answer;
+        state.extractedDetails.brand = state.extractedDetails.brand || answer;
+      } else if (question.includes('distinctive') || question.includes('unique') || question.includes('mark')) {
+        state.extractedDetails.uniqueFeatures = [...new Set([...state.extractedDetails.uniqueFeatures, answer])];
+      }
+    }
+
     const handleUserAnswer = async (text) => {
       if (text && text.trim()) {
+        applyManualAnswer(activePrompt, text);
         state.conversation.push({ role: 'user', content: text.trim() });
       }
       const followUp = await fetchFollowUpQuestion();
@@ -344,10 +387,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const fallback = followUp?.question || getLocalFallbackQuestion();
+      activePrompt = fallback;
       askQuestion({ prompt: fallback, placeholder: 'Type your answer…', onAnswer: handleUserAnswer });
     };
 
-    const initial = nextStep.initialQuestion !== undefined ? nextStep.initialQuestion : nextStep.prompt;
+    const initial = activePrompt;
     if (!initial) return handleUserAnswer('');
     askQuestion({
       prompt: initial,

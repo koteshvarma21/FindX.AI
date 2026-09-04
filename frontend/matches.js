@@ -1,8 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const grid = document.getElementById('matches-grid');
   const apiBase = window.FINDX_API_BASE || 'http://localhost:5000/api';
   const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-  const formatScore = (value) => Number.isFinite(Number(value)) ? `${Number(value)}%` : 'N/A';
+  const formatScore = (value) => {
+    const number = Number(value);
+    return value !== null && value !== undefined && Number.isFinite(number) ? `${Math.round(number)}%` : 'N/A';
+  };
   const params = new URLSearchParams(window.location.search);
   const lostItemId = params.get('lostItemId');
 

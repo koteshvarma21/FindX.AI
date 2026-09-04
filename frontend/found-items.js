@@ -1,9 +1,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const grid = document.getElementById('found-items-grid');
 
   try {
     const response = await fetch(
-      `${window.FINDX_API_BASE || 'http://localhost:5000/api'}/found-items`
+      `${window.FINDX_API_BASE || 'http://localhost:5000/api'}/found-items?status=active`
     );
 
     const result = await response.json();

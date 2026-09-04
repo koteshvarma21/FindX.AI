@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { scoreLostFoundMatch, SEMANTIC_MATCH_LEVELS, MATCHING_WEIGHTS, buildVisualMatchingText } = require('../services/aiMatchingService');
+const { scoreLostFoundMatch, compareLocationItems, SEMANTIC_MATCH_LEVELS, MATCHING_WEIGHTS, buildVisualMatchingText } = require('../services/aiMatchingService');
 
 test('matching weights total one and structured visual text is included', () => {
   assert.equal(Object.values(MATCHING_WEIGHTS).reduce((sum, weight) => sum + weight, 0), 1);
@@ -42,4 +42,16 @@ test('semantic matching gives a low score for unrelated items', async () => {
   );
 
   assert.ok(result.overallScore < 65, `expected overall score below 65, got ${result.overallScore}`);
+});
+
+test('unknown location remains null', () => {
+  assert.equal(compareLocationItems({ description: 'wallet' }, { description: 'wallet' }), null);
+});
+
+test('travel path can improve location evidence even when GPS exists', () => {
+  const score = compareLocationItems(
+    { last_seen_lat: 17.3, last_seen_lng: 78.4, last_seen_location: 'Remote place', travel_path: [{ location: 'Central Library' }] },
+    { found_lat: 17.5, found_lng: 78.8, found_location: 'Central Library entrance' }
+  );
+  assert.equal(score, 90);
 });

@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const nameInput = document.getElementById('profile-name');
   const usernameInput = document.getElementById('profile-username');
   const emailInput = document.getElementById('profile-email');

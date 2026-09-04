@@ -2,7 +2,7 @@ const express = require('express');
 const OpenAI = require('openai');
 const GeneratedImage = require('../models/GeneratedImage');
 const { requireAuth } = require('../middleware/auth');
-const { isSafeImageUrl, storeDataUrl } = require('../services/imageStorage');
+const { ImageStorageError, isSafeImageUrl, storeDataUrl } = require('../services/imageStorage');
 
 const router = express.Router();
 
@@ -26,7 +26,8 @@ router.post('/generate', requireAuth, async (req, res) => {
     res.json({ imageUrl, promptUsed: prompt });
   } catch (err) {
     console.error('Image generation error:', err);
-    res.status(500).json({ message: 'Failed to generate image' });
+    const status = err.statusCode || (err.name === 'APIError' ? 503 : 500);
+    res.status(status).json({ message: status === 503 ? 'Image provider is unavailable' : 'Failed to generate image' });
   }
 });
 
@@ -37,7 +38,8 @@ router.post('/upload', requireAuth, async (req, res) => {
     return res.json({ imageUrl });
   } catch (error) {
     console.error('Image upload error:', error.message);
-    return res.status(500).json({ message: 'Failed to store image' });
+    const status = error instanceof ImageStorageError ? error.statusCode : 500;
+    return res.status(status).json({ message: status === 500 ? 'Failed to store image' : error.message });
   }
 });
 
@@ -62,7 +64,8 @@ router.post('/confirm', requireAuth, async (req, res) => {
     res.status(201).json({ message: 'Image confirmed and saved', generatedImageId: record._id, imageUrl: storedImageUrl, record });
   } catch (err) {
     console.error('Confirm image error:', err);
-    res.status(500).json({ message: 'Failed to save confirmed image' });
+    const status = err instanceof ImageStorageError ? err.statusCode : 500;
+    res.status(status).json({ message: status === 500 ? 'Failed to save confirmed image' : err.message });
   }
 });
 
