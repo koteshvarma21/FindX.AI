@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FindX.AI — Log in or sign up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>
+  /* If already logged in, skip straight to the home page. */
+  if (sessionStorage.getItem('findx-auth')) {
+    window.location.replace('home.html');
+  }
+</script>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="#F1EDE4" stroke-width="2"/><line x1="20" y1="20" x2="15.5" y2="15.5" stroke="#F1EDE4" stroke-width="2" stroke-linecap="round"/></svg>
+    </span>
+    FindX.AI
+  </div>
+</header>
+
+<main class="auth-main">
+
+  <div class="auth-shell">
+    <span class="form-tag-hole"></span>
+
+    <h1 class="form-title" style="text-align:center">Welcome to FindX.AI</h1>
+
+    <div class="powered-badge">
+      <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" stroke="#2F6F62" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      Powered by Featherless.AI
+    </div>
+
+    <p class="form-sub" style="text-align:center;margin-left:auto;margin-right:auto">Log in to your account, or create a new one to start finding what's lost.</p>
+
+    <div class="auth-tabs" id="auth-tabs">
+      <button type="button" class="auth-tab-btn is-active" data-auth-tab="login">Log in</button>
+      <button type="button" class="auth-tab-btn" data-auth-tab="signup">Sign up</button>
+    </div>
+
+    <!-- LOGIN: credentials -->
+    <form class="field-list auth-step" data-step="login-credentials" id="login-credentials-step">
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" required>
+        <span class="field-error" id="login-email-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" required>
+        <span class="field-error" id="login-password-error"></span>
+      </div>
+
+      <button type="submit" class="btn-primary" id="login-continue-btn">
+        <span class="btn-spark">✨</span> Continue
+      </button>
+    </form>
+
+    <!-- SIGN UP: details -->
+    <form class="field-list auth-step is-hidden" data-step="signup-details" id="signup-details-step">
+      <div class="field">
+        <label for="signup-name">Full name</label>
+        <input type="text" id="signup-name" placeholder="Your full name" autocomplete="name" required>
+        <span class="field-error" id="signup-name-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="signup-username">Username</label>
+        <input type="text" id="signup-username" placeholder="Pick a username" autocomplete="username" required>
+        <span class="field-error" id="signup-username-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email" required>
+        <span class="field-error" id="signup-email-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" placeholder="Create a password" autocomplete="new-password" required>
+        <span class="field-error" id="signup-password-error"></span>
+      </div>
+
+      <div class="field">
+        <label for="signup-confirm">Confirm password</label>
+        <input type="password" id="signup-confirm" placeholder="Re-enter your password" autocomplete="new-password" required>
+        <span class="field-error" id="signup-confirm-error"></span>
+      </div>
+
+      <button type="submit" class="btn-primary" id="signup-continue-btn">
+        <span class="btn-spark">✨</span> Create account
+      </button>
+    </form>
+
+    <!-- Shared: OTP verification -->
+    <form class="field-list auth-step is-hidden" data-step="otp" id="otp-step">
+      <p class="otp-copy">We've sent a 6-digit code to <strong id="otp-email-display"></strong>.</p>
+
+      <div class="otp-boxes" id="otp-boxes">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 1">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 2">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 3">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 4">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 5">
+        <input type="text" inputmode="numeric" maxlength="1" class="otp-box" aria-label="Digit 6">
+      </div>
+      <span class="field-error" id="otp-error"></span>
+
+      <button type="submit" class="btn-primary" id="verify-btn">
+        <span class="btn-spark">✨</span> Verify &amp; continue
+      </button>
+
+      <p class="resend-row">
+        <button type="button" class="link-btn" id="resend-btn" disabled>Resend code (<span id="resend-timer">60</span>s)</button>
+        <button type="button" class="link-btn" id="back-btn">Go back</button>
+      </p>
+    </form>
+
+    <p class="auth-switch" id="auth-switch-login">New to FindX.AI? <button type="button" class="link-btn" data-auth-tab="signup">Create an account</button></p>
+    <p class="auth-switch is-hidden" id="auth-switch-signup">Already have an account? <button type="button" class="link-btn" data-auth-tab="login">Log in</button></p>
+
+    <p class="auth-footnote">OTP delivery and verification for this demo is <strong>Not Available</strong>. Swap in your API key in <code>auth.js</code> to go live.</p>
+  </div>
+
+</main>
+
+<script src="auth.js"></script>
+</body>
+</html>

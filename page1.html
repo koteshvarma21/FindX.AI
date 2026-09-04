@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FindX.AI — Tell us about your lost item</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="auth-guard.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="#F1EDE4" stroke-width="2"/><line x1="20" y1="20" x2="15.5" y2="15.5" stroke="#F1EDE4" stroke-width="2" stroke-linecap="round"/></svg>
+    </span>
+    FindX.AI
+  </div>
+  <nav>
+    <a href="home.html">Home</a>
+    <a href="search.html">Search</a>
+    <a href="found.html">Found</a>
+    <a href="lost-items.html">Lost Items</a>
+    <a href="found-items.html">Found Items</a>
+    <div id="profile-menu"></div>
+  </nav>
+</header>
+
+<main class="form-main">
+
+  <ol class="stepper" aria-label="Search progress">
+    <li class="is-current"><span class="stepper-dot">1</span><span class="stepper-label">Tell us</span></li>
+    <li><span class="stepper-dot">2</span><span class="stepper-label">Describe it</span></li>
+    <li><span class="stepper-dot">3</span><span class="stepper-label">Last seen</span></li>
+    <li><span class="stepper-dot">4</span><span class="stepper-label">Matches</span></li>
+  </ol>
+
+  <div class="form-shell">
+    <span class="form-tag-hole"></span>
+
+    <h1 class="form-title">Tell us about your<br>lost item</h1>
+    <p class="form-sub">A few basics first — we'll bring in the AI on the next step to fill in the details.</p>
+
+    <form class="field-list">
+      <div class="field">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" placeholder="Your full name" required>
+      </div>
+
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required>
+      </div>
+
+      <div class="field">
+        <label for="item-name">Item name</label>
+        <input type="text" id="item-name" name="item-name" placeholder="e.g. Black leather wallet" required>
+      </div>
+
+      <div class="field">
+        <label for="description">Short description</label>
+        <textarea id="description" name="description" rows="3" placeholder="Anything that helps us picture it — where you had it last, what stands out about it"></textarea>
+      </div>
+
+      <button type="submit" class="btn-primary">
+        <span class="btn-spark">✨</span> Tell it to our AI
+      </button>
+    </form>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <div class="logo footer-logo">
+        <span class="logo-mark logo-mark--light">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="#1F2A44" stroke-width="2"/><line x1="20" y1="20" x2="15.5" y2="15.5" stroke="#1F2A44" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>
+        FindX.AI
+      </div>
+      <p class="footer-tagline">Lost. Located. <em>Reunited.</em></p>
+      <p class="footer-desc">FindX.AI uses artificial intelligence to help people find lost belongings through intelligent visual matching, semantic search, location intelligence, and timeline analysis.</p>
+    </div>
+
+    <div class="footer-columns">
+      <div class="footer-col">
+        <h4>Explore</h4>
+        <a href="home.html">Home</a>
+        <a href="search.html">Search Item</a>
+        <a href="found.html">Report Found Item</a>
+        <a href="lost-items.html">Lost Items</a>
+        <a href="found-items.html">Found Items</a>
+        <a href="profile.html">My Profile</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#">How It Works</a>
+        <a href="#">Support / FAQ</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms &amp; Conditions</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Connect With Us</h4>
+        <a href="#">Instagram</a>
+        <a href="#">LinkedIn</a>
+        <a href="#">Discord</a>
+        <a href="#">WhatsApp</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Contact Us</h4>
+        <a href="mailto:support@findx.ai">support@findx.ai</a>
+        <p class="footer-address">Sreenidhi Institute of<br>Science and Technology,<br>Hyderabad</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <span>© 2026 FindX.AI. All rights reserved.</span>
+    <span>Designed &amp; developed by the student team</span>
+  </div>
+</footer>
+
+<script src="profile-menu.js"></script>
+</body>
+</html>

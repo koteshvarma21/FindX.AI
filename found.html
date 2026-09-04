@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FindX.AI — Report a found item</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="auth-guard.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="#F1EDE4" stroke-width="2"/><line x1="20" y1="20" x2="15.5" y2="15.5" stroke="#F1EDE4" stroke-width="2" stroke-linecap="round"/></svg>
+    </span>
+    FindX.AI
+  </div>
+  <nav>
+    <a href="home.html">Home</a>
+    <a href="search.html">Search</a>
+    <a href="found.html" class="active">Found</a>
+    <a href="lost-items.html">Lost Items</a>
+    <a href="found-items.html">Found Items</a>
+    <div id="profile-menu"></div>
+  </nav>
+</header>
+
+<main class="form-main">
+
+  <h1 class="form-title" style="text-align:center">Report a found item</h1>
+  <p class="form-sub" style="text-align:center;margin-left:auto;margin-right:auto">Found something that isn't yours? Add a photo and a few details so we can match it to its owner.</p>
+
+  <div class="found-dropzone">
+    <div class="dropzone" id="found-dropzone">
+      <span class="dropzone-icon">
+        <svg viewBox="0 0 24 24" fill="none" width="24" height="24"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#2F6F62" stroke-width="1.8"/><circle cx="12" cy="13" r="3.5" stroke="#2F6F62" stroke-width="1.8"/><path d="M8 6l1.2-2h5.6L16 6" stroke="#2F6F62" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </span>
+      <h3>Add a photo of the item</h3>
+      <p>Drag &amp; drop an image here, or browse</p>
+      <button type="button" class="btn-secondary" id="found-browse-btn">Browse image</button>
+      <input type="file" id="found-file-input" accept=".jpg,.jpeg,.png,.webp">
+      <p class="dropzone-hint">JPG, PNG, WEBP · Max 10 MB</p>
+      <p class="file-chosen" id="found-file-chosen"></p>
+    </div>
+  </div>
+
+  <div class="form-shell">
+    <span class="form-tag-hole"></span>
+
+    <form class="field-list" id="found-form">
+      <div class="field">
+        <label for="found-item-name">Item name</label>
+        <input type="text" id="found-item-name" name="item-name" placeholder="e.g. Black leather wallet" required>
+      </div>
+
+      <div class="field">
+        <label for="found-description">Description</label>
+        <textarea id="found-description" name="description" rows="4" placeholder="Color, brand, condition — anything that would help the owner recognize it" required></textarea>
+      </div>
+
+      <div class="field">
+        <label for="found-location">Found location</label>
+        <input type="text" id="found-location" name="found-location" placeholder="e.g. Near the library, Sreenidhi Institute of Science and Technology" required>
+      </div>
+
+      <div class="field">
+        <label for="found-date">Date found</label>
+        <input type="date" id="found-date" name="found-date">
+      </div>
+
+      <button type="submit" class="btn-primary">
+        <span class="btn-spark">✨</span> Submit found item
+      </button>
+      <p class="form-success" id="found-success">Thanks — your found item report has been submitted.</p>
+    </form>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <div class="logo footer-logo">
+        <span class="logo-mark logo-mark--light">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="#1F2A44" stroke-width="2"/><line x1="20" y1="20" x2="15.5" y2="15.5" stroke="#1F2A44" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>
+        FindX.AI
+      </div>
+      <p class="footer-tagline">Lost. Located. <em>Reunited.</em></p>
+      <p class="footer-desc">FindX.AI uses artificial intelligence to help people find lost belongings through intelligent visual matching, semantic search, location intelligence, and timeline analysis.</p>
+    </div>
+
+    <div class="footer-columns">
+      <div class="footer-col">
+        <h4>Explore</h4>
+        <a href="home.html">Home</a>
+        <a href="search.html">Search Item</a>
+        <a href="found.html">Report Found Item</a>
+        <a href="lost-items.html">Lost Items</a>
+        <a href="found-items.html">Found Items</a>
+        <a href="profile.html">My Profile</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#">How It Works</a>
+        <a href="#">Support / FAQ</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms &amp; Conditions</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Connect With Us</h4>
+        <a href="#">Instagram</a>
+        <a href="#">LinkedIn</a>
+        <a href="#">Discord</a>
+        <a href="#">WhatsApp</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Contact Us</h4>
+        <a href="mailto:support@findx.ai">support@findx.ai</a>
+        <p class="footer-address">Sreenidhi Institute of<br>Science and Technology,<br>Hyderabad</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <span>© 2026 FindX.AI. All rights reserved.</span>
+    <span>Designed &amp; developed by the student team</span>
+  </div>
+</footer>
+
+<script src="found.js"></script>
+<script src="profile-menu.js"></script>
+</body>
+</html>
