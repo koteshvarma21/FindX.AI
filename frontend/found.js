@@ -143,6 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!localStorage.getItem('token')) {
     alert('Please login before submitting an item.');
+    isSubmitting = false;
+    submitButton.disabled = false;
     return;
   }
 

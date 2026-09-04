@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     isGenerating: false,
     isConfirming: false,
+    generatedImageId: '',
   };
   try { mergeExtractedDetails(JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}')); } catch (_error) { }
 
@@ -264,8 +265,8 @@ document.addEventListener('DOMContentLoaded', () => {
           addMessage("Great, I've saved that. Ready to move on?", 'ai');
           continueRow.style.display = 'flex';
         } catch (err) {
-          addMessage(`Couldn't save that (${err.message}). You can still continue.`, 'ai');
-          continueRow.style.display = 'flex';
+          addMessage(`Couldn't save that (${err.message}). Please retry the confirmation.`, 'ai');
+          matchRow.style.display = 'flex';
         } finally {
           state.isConfirming = false;
           accuracySubmit.disabled = false;
