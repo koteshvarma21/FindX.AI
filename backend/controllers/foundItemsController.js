@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const FoundItem = require('../models/FoundItem');
+const { runMatchingForFoundItem } = require('./matchesController');
 
 async function findOrCreateUser(email, name) {
   let user = await User.findOne({
@@ -58,10 +59,15 @@ async function createFoundItem(req, res) {
       image_url: image_url || undefined
     });
 
+    const matches = await runMatchingForFoundItem(item._id);
+
     res.status(201).json({
       success: true,
       message: 'Found item submitted successfully',
-      data: item
+      data: {
+        ...item.toObject(),
+        matches,
+      }
     });
 
   } catch (error) {

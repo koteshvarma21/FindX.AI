@@ -7,8 +7,9 @@ const mongoose = require('mongoose');
 const lostItemsRouter = require('./routes/lostItems');
 const authRouter = require('./routes/auth');
 const imagesRouter = require('./routes/images');
-const foundItemsRouter = require('./routes/foundItems'); // add when that module exists
-// const matchesRouter = require('./routes/matches');       // add when matching AI is wired up
+const foundItemsRouter = require('./routes/foundItems');
+const aiRouter = require('./routes/ai');
+const matchesRouter = require('./routes/matches');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -40,7 +41,8 @@ app.use('/api/lost-items', lostItemsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/images', imagesRouter);
 app.use('/api/found-items', foundItemsRouter);
-// app.use('/api/matches', matchesRouter);
+app.use('/api/ai', aiRouter);
+app.use('/api/matches', matchesRouter);
 
 // --- 404 handler ---
 app.use((req, res) => {

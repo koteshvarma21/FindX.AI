@@ -7,10 +7,17 @@ const mongoose = require('mongoose');
 const matchSchema = new mongoose.Schema(
   {
     lost_item: { type: mongoose.Schema.Types.ObjectId, ref: 'LostItem', required: true },
-    found_item: { type: mongoose.Schema.Types.ObjectId, ref: 'FoundItem', default: null }, // null if matched via CCTV only
-    match_source: { type: String, enum: ['found_page', 'cctv'], required: true },
-    image_similarity_score: { type: Number, min: 0, max: 100 },
-    cctv_footage_ref: { type: String, trim: true }, // pointer/id into the CCTV module's storage
+    found_item: { type: mongoose.Schema.Types.ObjectId, ref: 'FoundItem', default: null },
+    match_source: { type: String, enum: ['found_page', 'cctv', 'manual'], default: 'found_page' },
+    image_similarity_score: { type: Number, min: 0, max: 100, default: null },
+    semantic_score: { type: Number, min: 0, max: 100, default: 0 },
+    location_score: { type: Number, min: 0, max: 100, default: 0 },
+    time_score: { type: Number, min: 0, max: 100, default: 0 },
+    category_score: { type: Number, min: 0, max: 100, default: 0 },
+    overall_score: { type: Number, min: 0, max: 100, default: 0 },
+    ai_reason: { type: String, trim: true },
+    ai_model: { type: String, trim: true },
+    cctv_footage_ref: { type: String, trim: true },
     match_status: {
       type: String,
       enum: ['pending', 'notified', 'confirmed', 'rejected'],
@@ -19,5 +26,7 @@ const matchSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: 'matched_at', updatedAt: 'updated_at' } }
 );
+
+matchSchema.index({ lost_item: 1, found_item: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Match', matchSchema);

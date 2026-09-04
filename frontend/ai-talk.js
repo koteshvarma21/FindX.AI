@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     details: '',
     imageUrl: '',
     improvements: [],
+    conversation: [],
   };
 
   let answerHandler = null; // (text) => void — set by askQuestion()
@@ -128,6 +129,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const body = await res.json();
     if (!res.ok) throw new Error(body.message || 'Failed to save confirmation');
     return body;
+  }
+
+  async function fetchFollowUpQuestion() {
+    const payload = {
+      originalDescription: buildDescription(),
+      conversation: state.conversation,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/ai/follow-up`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok || !body?.question) {
+        return null;
+      }
+      return body;
+    } catch (_error) {
+      return null;
+    }
   }
 
   /* ---------------- conversation flow ---------------- */
@@ -223,47 +246,76 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function askItemName() {
+  function askAdaptiveQuestion(nextStep) {
+    const captureAnswer = async (text) => {
+      if (text && text.trim()) {
+        state.conversation.push({ question: nextStep.prompt, answer: text.trim() });
+      }
+      const followUp = await fetchFollowUpQuestion();
+      const prompt = followUp?.question || nextStep.prompt;
+      askQuestion({
+        prompt,
+        chips: nextStep.chips || [],
+        placeholder: nextStep.placeholder || 'Type your answer…',
+        onAnswer: (answer) => nextStep.onAnswer(answer),
+      });
+    };
+
+    nextStep.ask = captureAnswer;
+    const initial = nextStep.initialQuestion || nextStep.prompt;
     askQuestion({
+      prompt: initial,
+      chips: nextStep.chips || [],
+      placeholder: nextStep.placeholder || 'Type your answer…',
+      onAnswer: (answer) => nextStep.onAnswer(answer),
+    });
+  }
+
+  function askItemName() {
+    askAdaptiveQuestion({
       prompt: state.mode === 'upload' ? "What's the item called?" : "What's the item called?",
       placeholder: 'e.g. backpack, water bottle…',
       onAnswer: (text) => {
-        state.itemName = text;
+        const clean = text.trim();
+        if (clean) state.itemName = clean;
         askDetails();
       },
     });
   }
 
   function askDetails() {
-    askQuestion({
+    askAdaptiveQuestion({
       prompt: 'Any distinguishing details — brand, marks, condition?',
       placeholder: 'Type details, or "skip"',
       onAnswer: (text) => {
-        if (text.toLowerCase() !== 'skip') state.details = text;
+        const answer = text.trim();
+        if (answer && !/^skip$/i.test(answer)) state.details = answer;
         askColor();
       },
     });
   }
 
   function askColor() {
-    askQuestion({
+    askAdaptiveQuestion({
       prompt: 'What color is it, mostly?',
       chips: ['Black', 'White', 'Blue', 'Red', 'Green', 'Other'],
       placeholder: 'Or type a color…',
       onAnswer: (text) => {
-        state.color = text;
+        const answer = text.trim();
+        if (answer) state.color = answer;
         askBrand();
       },
     });
   }
 
   function askBrand() {
-    askQuestion({
+    askAdaptiveQuestion({
       prompt: 'Any brand or make? (Skip if not sure)',
       chips: ['Not sure / skip'],
       placeholder: 'Type a brand…',
       onAnswer: (text) => {
-        if (!/skip|not sure/i.test(text)) state.brand = text;
+        const answer = text.trim();
+        if (answer && !/skip|not sure/i.test(answer)) state.brand = answer;
         runGeneration();
       },
     });

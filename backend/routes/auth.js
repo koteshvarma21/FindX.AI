@@ -17,20 +17,37 @@ router.post('/register', async (req, res) => {
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
+
     const normalizedUsername = username.toLowerCase();
     const normalizedEmail = email.toLowerCase();
-    const existing = await User.findOne({
+
+    let existing = await User.findOne({
       $or: [{ username: normalizedUsername }, { email: normalizedEmail }],
     });
-    if (existing) return res.status(409).json({ message: 'Username or email is already taken' });
-    const user = await User.create({
-      username: normalizedUsername,
-      email: normalizedEmail,
-      password,
-      fullName,
-      name: fullName,
-      phone,
-    });
+
+    if (existing && existing.password) {
+      return res.status(409).json({ message: 'Username or email is already taken' });
+    }
+
+    if (!existing) {
+      existing = await User.create({
+        username: normalizedUsername,
+        email: normalizedEmail,
+        password,
+        fullName,
+        name: fullName,
+        phone,
+      });
+    } else {
+      existing.username = normalizedUsername;
+      existing.password = password;
+      existing.fullName = fullName || existing.fullName;
+      existing.name = fullName || existing.name;
+      existing.phone = phone || existing.phone;
+      await existing.save();
+    }
+
+    const user = await User.findById(existing._id);
     res.status(201).json({ token: signToken(user), user });
   } catch (err) {
     console.error('Register error:', err);

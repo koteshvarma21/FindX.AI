@@ -1,6 +1,7 @@
 // controllers/lostItemsController.js
 const User = require('../models/User');
 const LostItem = require('../models/LostItem');
+const { runMatchingForLostItem } = require('./matchesController');
 
 // Finds a user by email, or creates one on the fly.
 // This project has no login system yet, so the reporter's email doubles as their identity.
@@ -36,13 +37,17 @@ async function createLostItem(req, res) {
       contact_email: body.contact_email,
     });
 
+    const matchingResults = await runMatchingForLostItem(lostItem._id);
+
     return res.status(201).json({
       success: true,
       message: 'Report submitted successfully.',
       data: {
         lost_id: lostItem._id,
+        lostItemId: lostItem._id,
         status: lostItem.status,
         created_at: lostItem.created_at,
+        matches: matchingResults,
       },
     });
   } catch (err) {
