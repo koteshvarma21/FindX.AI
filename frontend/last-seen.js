@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const locationInput = document.getElementById('last-seen-location');
   const dateInput = document.getElementById('last-seen-date');
   const timeInput = document.getElementById('last-seen-time');
+  const submitButton = form.querySelector('button[type="submit"]');
+  let isSubmitting = false;
   const travelPathInput = document.getElementById('travel-path');
   const locationButton = document.getElementById('use-location-btn');
   const locationStatus = document.getElementById('location-status');
@@ -23,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (isSubmitting) return;
 
     const location = locationInput.value.trim();
     if (!location) {
@@ -35,13 +38,16 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Please login before submitting the report.');
       return;
     }
+    isSubmitting = true;
+    submitButton.disabled = true;
 
     const dateValue = dateInput.value;
     const timeValue = timeInput.value;
 
-    let discoveredLostAt = '';
+    let lastSeenAt;
     if (dateValue) {
-      discoveredLostAt = timeValue ? `${dateValue}T${timeValue}:00` : `${dateValue}T00:00:00`;
+      const localDate = new Date(`${dateValue}T${timeValue || '12:00'}:00`);
+      if (!Number.isNaN(localDate.getTime())) lastSeenAt = localDate.toISOString();
     }
 
     const payload = {
@@ -63,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ...coordinates,
       travel_path: travelPathInput.value.split(',').map((place) => place.trim()).filter(Boolean).map((place) => ({ location: place })),
       user_confidence_score: sessionStorage.getItem('findx-image-confidence') ? Number(sessionStorage.getItem('findx-image-confidence')) : undefined,
-      discovered_lost_at: discoveredLostAt || new Date().toISOString(),
+      last_seen_at: lastSeenAt,
       reporter_name: sessionStorage.getItem('findx-user-name') || 'Reporter',
     };
 
@@ -86,6 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error(error);
       alert(error.message || 'Unable to save the lost item.');
+      isSubmitting = false;
+      submitButton.disabled = false;
     }
   });
 });

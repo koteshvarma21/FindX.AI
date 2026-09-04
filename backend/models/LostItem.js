@@ -33,6 +33,7 @@ const lostItemSchema = new mongoose.Schema(
     last_seen_location: { type: String, required: true, trim: true },
     last_seen_lat: { type: Number, min: -90, max: 90 },
     last_seen_lng: { type: Number, min: -180, max: 180 },
+    last_seen_at: { type: Date },
     discovered_lost_at: { type: Date }, // when the user realized it was missing
     travel_path: [travelStopSchema], // ordered waypoints with timestamps
     contact_email: { type: String, required: true, trim: true, lowercase: true },
@@ -44,5 +45,7 @@ const lostItemSchema = new mongoose.Schema(
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
+
+lostItemSchema.index({ status: 1, created_at: -1 });
 
 module.exports = mongoose.model('LostItem', lostItemSchema);

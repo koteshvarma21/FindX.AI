@@ -2,7 +2,7 @@ const express = require('express');
 const OpenAI = require('openai');
 const GeneratedImage = require('../models/GeneratedImage');
 const { requireAuth } = require('../middleware/auth');
-const { storeDataUrl } = require('../services/imageStorage');
+const { isSafeImageUrl, storeDataUrl } = require('../services/imageStorage');
 
 const router = express.Router();
 
@@ -16,9 +16,12 @@ router.post('/generate', requireAuth, async (req, res) => {
   try {
     const { description, improvements = [] } = req.body;
     if (!description || !description.trim()) return res.status(400).json({ message: 'description is required' });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ message: 'Optional image generation is not configured.' });
+    if (!Array.isArray(improvements)) return res.status(400).json({ message: 'improvements must be an array' });
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const prompt = buildPrompt(description, improvements);
     const result = await openai.images.generate({ model: 'gpt-image-1', prompt, size: '1024x1024' });
+    if (!result.data?.[0]?.b64_json) return res.status(502).json({ message: 'Image provider returned no image data' });
     const imageUrl = await storeDataUrl(`data:image/png;base64,${result.data[0].b64_json}`);
     res.json({ imageUrl, promptUsed: prompt });
   } catch (err) {
@@ -44,7 +47,9 @@ router.post('/confirm', requireAuth, async (req, res) => {
     if (!description || !imageUrl || accuracy === undefined) {
       return res.status(400).json({ message: 'description, imageUrl, and accuracy are required' });
     }
-    if (Number(accuracy) < 60) return res.status(400).json({ message: 'Accuracy must be at least 60 to confirm the image.' });
+    if (!Array.isArray(improvements)) return res.status(400).json({ message: 'improvements must be an array' });
+    if (!Number.isFinite(Number(accuracy)) || Number(accuracy) < 60 || Number(accuracy) > 100) return res.status(400).json({ message: 'Accuracy must be a number from 60 to 100.' });
+    if (!isSafeImageUrl(imageUrl) && !String(imageUrl).startsWith('data:image/')) return res.status(400).json({ message: 'imageUrl must be an application image URL.' });
     const storedImageUrl = await storeDataUrl(imageUrl);
     const record = await GeneratedImage.create({
       user: req.userId,

@@ -59,6 +59,13 @@ async function updateMatchStatus(req, res) {
     if (String(match.lost_item.user) !== String(req.userId)) {
       return res.status(403).json({ success: false, message: 'You cannot update this match' });
     }
+    if (match.match_status !== 'pending') {
+      return res.status(409).json({ success: false, message: 'Only pending matches can be changed' });
+    }
+    const foundItem = await FoundItem.findById(match.found_item).select('status');
+    if (status === 'confirmed' && (match.lost_item.status === 'resolved' || foundItem?.status === 'resolved')) {
+      return res.status(409).json({ success: false, message: 'This item has already been resolved' });
+    }
     match.match_status = status;
     await match.save();
 
@@ -133,9 +140,9 @@ async function getMatchesForLostItem(req, res) {
       return res.status(403).json({ success: false, message: 'You cannot view these matches' });
     }
 
-    const matches = await Match.find({ lost_item: lostItemId })
-      .populate('lost_item')
-      .populate('found_item')
+    const matches = await Match.find({ lost_item: lostItemId, match_status: { $ne: 'rejected' } })
+      .populate('lost_item', '_id item_name description original_image_url ai_generated_image_url')
+      .populate('found_item', '_id item_name description image_url found_location category color brand status')
       .sort({ overall_score: -1, created_at: -1 });
 
     return res.json({

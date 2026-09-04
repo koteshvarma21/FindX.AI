@@ -49,7 +49,14 @@ async function createFoundItem(req, res) {
       found_lng: req.body.found_lng,
     });
 
-    const matches = await runMatchingForFoundItem(item._id);
+    let matches = [];
+    let matchingStatus = 'completed';
+    try {
+      matches = await runMatchingForFoundItem(item._id);
+    } catch (matchingError) {
+      matchingStatus = 'failed';
+      console.error('Found-item matching failed after save:', matchingError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -57,6 +64,7 @@ async function createFoundItem(req, res) {
       data: {
         ...item.toObject(),
         matches,
+        matchingStatus,
       }
     });
 
@@ -72,8 +80,9 @@ async function createFoundItem(req, res) {
 
 async function getFoundItems(req, res) {
   try {
+    const filter = req.query.status ? { status: req.query.status } : {};
     const items = await FoundItem
-      .find()
+      .find(filter)
       .select('_id item_name description category color brand image_url found_location found_at status created_at')
       .sort({ created_at: -1 });
 

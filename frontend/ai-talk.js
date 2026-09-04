@@ -53,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
       visualDescription: '',
       uniqueFeatures: [],
     },
+    isGenerating: false,
+    isConfirming: false,
   };
   try { mergeExtractedDetails(JSON.parse(sessionStorage.getItem('findx-extracted-details') || '{}')); } catch (_error) { }
 
@@ -164,18 +166,29 @@ document.addEventListener('DOMContentLoaded', () => {
   function mergeExtractedDetails(details = {}) {
     const previous = state.extractedDetails;
     const value = (candidate, existing) => typeof candidate === 'string' && candidate.trim() ? candidate.trim() : existing;
+    const normalized = {
+      itemName: details.itemName || details.item_name,
+      category: details.category,
+      color: details.color,
+      brand: details.brand,
+      size: details.size,
+      material: details.material,
+      model: details.model,
+      visualDescription: details.visualDescription || details.visual_description,
+      uniqueFeatures: details.uniqueFeatures || details.unique_features,
+    };
     state.extractedDetails = {
-      itemName: value(details.itemName, previous.itemName),
-      category: value(details.category, previous.category),
-      color: value(details.color, previous.color),
-      brand: value(details.brand, previous.brand),
-      size: value(details.size, previous.size),
-      material: value(details.material, previous.material),
-      model: value(details.model, previous.model),
-      visualDescription: value(details.visualDescription, previous.visualDescription),
+      itemName: value(normalized.itemName, previous.itemName),
+      category: value(normalized.category, previous.category),
+      color: value(normalized.color, previous.color),
+      brand: value(normalized.brand, previous.brand),
+      size: value(normalized.size, previous.size),
+      material: value(normalized.material, previous.material),
+      model: value(normalized.model, previous.model),
+      visualDescription: value(normalized.visualDescription, previous.visualDescription),
       uniqueFeatures: [...new Set([
         ...previous.uniqueFeatures,
-        ...(Array.isArray(details.uniqueFeatures) ? details.uniqueFeatures : []),
+        ...(Array.isArray(normalized.uniqueFeatures) ? normalized.uniqueFeatures : []),
       ])],
     };
     if (details.itemName && !state.itemName) state.itemName = details.itemName;
@@ -195,8 +208,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function runGeneration() {
+    if (state.isGenerating || state.isConfirming) return;
+    state.isGenerating = true;
     matchRow.style.display = 'none';
-    continueRow.style.display = 'flex';
+    continueRow.style.display = 'none';
+    accuracySubmit.disabled = true;
     addMessage("Give me a second — picturing that now…", 'ai');
     try {
       const { imageUrl } = await generateImage(buildDescription(), state.improvements);
@@ -208,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
       addMessage('How close is this to your item?', 'ai');
       matchRow.style.display = 'flex';
     } catch (err) {
+      state.imageUrl = '';
+      state.generatedImageId = '';
       addMessage(
         `I couldn't generate an optional image (${err.message}). You can still continue with your report.`,
         'ai'
@@ -215,18 +233,26 @@ document.addEventListener('DOMContentLoaded', () => {
       vizSummary.textContent = buildDescription();
       vizCard.style.display = 'block';
       continueRow.style.display = 'flex';
+    } finally {
+      state.isGenerating = false;
     }
   }
 
   const accuracyRange = document.getElementById('accuracy-range');
   const accuracyValue = document.getElementById('accuracy-value');
   const accuracySubmit = document.getElementById('accuracy-submit');
+  matchRow.style.display = 'none';
+  continueRow.style.display = 'none';
+  vizCard.style.display = 'none';
   accuracyRange.addEventListener('input', () => { accuracyValue.textContent = `${accuracyRange.value}%`; });
   accuracySubmit.addEventListener('click', async () => {
+      if (state.isGenerating || state.isConfirming) return;
       const accuracy = Number(accuracyRange.value);
       sessionStorage.setItem('findx-image-confidence', String(accuracy));
 
       if (accuracy >= 60) {
+        state.isConfirming = true;
+        accuracySubmit.disabled = true;
         try {
           const confirmation = await confirmImage({
             description: buildDescription(),
@@ -240,6 +266,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
           addMessage(`Couldn't save that (${err.message}). You can still continue.`, 'ai');
           continueRow.style.display = 'flex';
+        } finally {
+          state.isConfirming = false;
+          accuracySubmit.disabled = false;
         }
       } else {
         matchRow.style.display = 'none';
@@ -264,6 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   skipImageBtn.addEventListener('click', () => {
     state.imageUrl = '';
+    state.generatedImageId = '';
+    sessionStorage.removeItem('findx-final-image');
+    sessionStorage.removeItem('findx-generated-image-id');
+    sessionStorage.removeItem('findx-image-confidence');
     vizCard.style.display = 'none';
     matchRow.style.display = 'none';
     continueRow.style.display = 'flex';
@@ -272,6 +305,11 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------------- kick off the conversation ---------------- */
 
   function start() {
+    const visionWarning = sessionStorage.getItem('findx-vision-warning');
+    if (visionWarning) {
+      addMessage(visionWarning, 'ai');
+      sessionStorage.removeItem('findx-vision-warning');
+    }
     addMessage('I will ask only for details that are still useful for identifying your item.', 'ai');
     const hasExistingDetails = Boolean(state.description || state.extractedDetails.itemName || state.extractedDetails.category);
     askAdaptiveQuestion({
@@ -282,6 +320,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function getLocalFallbackQuestion() {
+    const details = state.extractedDetails;
+    const asked = state.conversation.map((entry) => String(entry.content || '').toLowerCase()).join(' ');
+    if (!details.category && !state.itemName) return 'What kind of item was it?';
+    if (!details.color && !asked.includes('color')) return 'What color was it?';
+    if (!details.brand && !asked.includes('brand')) return 'Do you remember the brand or maker?';
+    if (!details.uniqueFeatures.length && !asked.includes('distinctive')) return 'What distinctive mark, sticker, damage, or accessory did it have?';
+    return 'Is there any other identifying detail you remember?';
+  }
+
   function askAdaptiveQuestion(nextStep) {
     const handleUserAnswer = async (text) => {
       if (text && text.trim()) {
@@ -290,11 +338,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const followUp = await fetchFollowUpQuestion();
       mergeExtractedDetails(followUp?.extractedDetails);
       const questionCount = state.conversation.filter((entry) => entry.role === 'user').length;
-      if (followUp?.readyToGenerate || questionCount >= 4 || !followUp?.question) {
+      if (followUp?.readyToGenerate || questionCount >= 4) {
         runGeneration();
         return;
       }
-      askQuestion({ prompt: followUp.question, placeholder: 'Type your answer…', onAnswer: handleUserAnswer });
+      const fallback = followUp?.question || getLocalFallbackQuestion();
+      askQuestion({ prompt: fallback, placeholder: 'Type your answer…', onAnswer: handleUserAnswer });
     };
 
     const initial = nextStep.initialQuestion !== undefined ? nextStep.initialQuestion : nextStep.prompt;

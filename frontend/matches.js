@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const grid = document.getElementById('matches-grid');
   const apiBase = window.FINDX_API_BASE || 'http://localhost:5000/api';
   const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+  const formatScore = (value) => Number.isFinite(Number(value)) ? `${Number(value)}%` : 'N/A';
   const params = new URLSearchParams(window.location.search);
   const lostItemId = params.get('lostItemId');
 
@@ -28,10 +29,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     matches.forEach((match) => {
       const foundItem = match.found_item || {};
-      const overallScore = Number(match.overall_score ?? 0);
-      const semantics = Number(match.semantic_score ?? 0);
-      const location = Number(match.location_score ?? 0);
-      const category = Number(match.category_score ?? 0);
+      const overallScore = Number(match.overall_score);
+      const semantics = match.semantic_score;
+      const location = match.location_score;
+      const category = match.category_score;
       const reason = match.ai_reason || 'AI matched these reports based on item similarity and location.';
       const status = match.match_status || 'pending';
       const lostItem = match.lost_item || {};
@@ -47,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <h3>${escapeHtml(foundItem.item_name || 'Found item')}</h3>
           <p class="item-description">${escapeHtml(foundItem.description || 'No description yet.')}</p>
           <p class="item-location">Found near: ${escapeHtml(foundItem.found_location || 'Unknown location')}</p>
-          <p class="item-card-meta">Overall ${overallScore}% · Semantic ${semantics}% · Visual ${match.visual_feature_score ?? 'N/A'} · Category ${category}% · Color ${match.color_score ?? 'N/A'} · Brand ${match.brand_score ?? 'N/A'} · Features ${match.unique_features_score ?? 'N/A'} · Location ${location}% · Time ${match.time_score ?? 'N/A'}%</p>
+          <p class="item-card-meta">Overall ${formatScore(overallScore)} · Semantic ${formatScore(semantics)} · Visual features ${formatScore(match.visual_feature_score)} · Category ${formatScore(category)} · Color ${formatScore(match.color_score)} · Brand ${formatScore(match.brand_score)} · Features ${formatScore(match.unique_features_score)} · Location ${formatScore(location)} · Time ${formatScore(match.time_score)}</p>
           <p class="item-card-meta">AI reason: ${escapeHtml(reason)}</p>
           <div class="match-actions">
             <button type="button" class="btn-primary confirm-match" ${status !== 'pending' ? 'disabled' : ''}>This Is My Item</button>
@@ -60,6 +61,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const updateStatus = async (nextStatus) => {
         if (nextStatus === 'confirmed' && !window.confirm('Are you sure this is your lost item?')) return;
+        const actionButtons = card.querySelectorAll('button');
+        actionButtons.forEach((button) => { button.disabled = true; });
         try {
           const statusResponse = await fetch(`${apiBase}/matches/${match._id}/status`, {
             method: 'PATCH',
@@ -74,6 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             card.querySelectorAll('button').forEach((button) => { button.disabled = true; });
           }
         } catch (error) {
+          actionButtons.forEach((button) => { button.disabled = false; });
           console.error(error);
           alert(error.message || 'Unable to update match status.');
         }

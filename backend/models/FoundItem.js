@@ -82,4 +82,6 @@ const foundItemSchema = new mongoose.Schema(
   }
 );
 
+foundItemSchema.index({ status: 1, created_at: -1 });
+
 module.exports = mongoose.model('FoundItem', foundItemSchema);

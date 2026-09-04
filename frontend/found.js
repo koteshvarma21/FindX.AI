@@ -5,7 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileChosen = document.getElementById('found-file-chosen');
   const form = document.getElementById('found-form');
   const success = document.getElementById('found-success');
+  const submitButton = form.querySelector('button[type="submit"]');
+  let isSubmitting = false;
   let coordinates = {};
+  let cachedPhoto = null;
+  let photoRequest = null;
   document.getElementById('use-found-location-btn').addEventListener('click', () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(({ coords }) => {
@@ -23,6 +27,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     fileChosen.textContent = `Selected: ${file.name}`;
     fileChosen.style.display = 'block';
+  }
+
+  function fileKey(file) {
+    return file ? `${file.name}:${file.size}:${file.lastModified}` : '';
+  }
+
+  function prefillFromAnalysis(details) {
+    const itemNameInput = document.getElementById('found-item-name');
+    const descriptionInput = document.getElementById('found-description');
+    if (!itemNameInput.value.trim()) itemNameInput.value = details.itemName || details.item_name || '';
+    if (!descriptionInput.value.trim()) descriptionInput.value = details.visualDescription || details.visual_description || '';
   }
 
   async function uploadImage(file) {
@@ -44,8 +59,44 @@ document.addEventListener('DOMContentLoaded', () => {
     return { imageUrl: result.imageUrl, imageData: image };
   }
 
+  async function processPhoto(file) {
+    const key = fileKey(file);
+    if (!key || cachedPhoto?.key === key) return cachedPhoto;
+    fileChosen.textContent = 'Analyzing photo...';
+    const uploaded = await uploadImage(file);
+    let extractedDetails = {};
+    try {
+      const analysisResponse = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        body: JSON.stringify({ image: uploaded.imageData }),
+      });
+      const analysis = await analysisResponse.json();
+      if (!analysisResponse.ok) throw new Error(analysis.message || 'AI image analysis is unavailable');
+      extractedDetails = analysis.extractedDetails || {};
+      prefillFromAnalysis(extractedDetails);
+      fileChosen.textContent = 'Photo analyzed. You can edit the suggested details.';
+    } catch (error) {
+      fileChosen.textContent = 'AI photo analysis is unavailable. You can still complete the report manually.';
+      console.warn('Found-image analysis unavailable:', error.message);
+    }
+    cachedPhoto = { key, imageUrl: uploaded.imageUrl, imageData: uploaded.imageData, extractedDetails };
+    return cachedPhoto;
+  }
+
+  function selectFile(file) {
+    if (!file) return;
+    showFile(file);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) return;
+    photoRequest = processPhoto(file).catch((error) => {
+      fileChosen.textContent = error.message || 'Unable to upload image.';
+      fileChosen.style.display = 'block';
+      throw error;
+    });
+  }
+
   browseBtn.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => showFile(fileInput.files[0]));
+  fileInput.addEventListener('change', () => selectFile(fileInput.files[0]));
 
   ['dragenter', 'dragover'].forEach((evt) => {
     dropzone.addEventListener(evt, (e) => {
@@ -65,12 +116,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = e.dataTransfer.files[0];
     if (file) {
       fileInput.files = e.dataTransfer.files;
-      showFile(file);
+      selectFile(file);
     }
   });
 
   form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (isSubmitting) return;
+  isSubmitting = true;
+  submitButton.disabled = true;
 
   const itemName =
     document.getElementById('found-item-name').value.trim();
@@ -93,23 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   try {
-    const uploaded = await uploadImage(fileInput.files[0]);
-    let extractedDetails = {};
-    if (uploaded.imageData) {
-      try {
-        const analysisResponse = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-          body: JSON.stringify({ image: uploaded.imageData }),
-        });
-        const analysis = await analysisResponse.json();
-        if (!analysisResponse.ok) throw new Error(analysis.message || 'Image analysis is currently unavailable');
-        extractedDetails = analysis.extractedDetails || {};
-      } catch (analysisError) {
-        console.warn('Found-image analysis unavailable:', analysisError.message);
-        alert('Image was uploaded, but AI image analysis is currently unavailable. You can continue by describing the item manually.');
-      }
-    }
+    if (photoRequest) await photoRequest;
+    const uploaded = cachedPhoto || await uploadImage(fileInput.files[0]);
+    const extractedDetails = uploaded.extractedDetails || {};
     const response = await fetch(
       `${window.FINDX_API_BASE || 'http://localhost:5000/api'}/found-items`,
       {
@@ -159,6 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (error) {
     console.error(error);
     alert(error.message);
+    isSubmitting = false;
+    submitButton.disabled = false;
   }
 });
 });

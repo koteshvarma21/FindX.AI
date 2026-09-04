@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const descriptionError = document.getElementById('describe-description-error');
 
   let activeTab = 'upload';
+  let isProcessingPhoto = false;
 
   // If we arrived from a link like search.html?tab=describe (e.g. the
   // home page tiles), open straight on that tab.
@@ -90,27 +91,35 @@ document.addEventListener('DOMContentLoaded', () => {
   /* Both flows hand off to the AI chat assistant to fill in the rest
      of the description: an uploaded photo, or a typed-out item name
      and description entered right here on the Describe item tab. */
-  submitBtn.addEventListener('click', () => {
+  submitBtn.addEventListener('click', async () => {
     if (activeTab === 'upload') {
+      if (isProcessingPhoto) return;
       if (!fileInput.files.length) {
         fileChosen.textContent = 'Please choose a photo first, or use "Describe item" instead.';
         fileChosen.style.color = '#B0392E';
         fileChosen.style.display = 'block';
         return;
       }
-      sessionStorage.setItem('findx-search-mode', 'upload');
-        sessionStorage.removeItem('findx-extracted-details');
-        sessionStorage.removeItem('findx-original-image');
       const file = fileInput.files[0];
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
+      isProcessingPhoto = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Uploading and analyzing...';
+      sessionStorage.setItem('findx-search-mode', 'upload');
+      sessionStorage.removeItem('findx-extracted-details');
+      sessionStorage.removeItem('findx-original-image');
+      try {
+        const imageData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Unable to read image file.'));
+          reader.readAsDataURL(file);
+        });
           const apiBase = window.FINDX_API_BASE || 'http://localhost:5000/api';
           const uploadResponse = await fetch(`${apiBase}/images/upload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-            body: JSON.stringify({ image: reader.result }),
+            body: JSON.stringify({ image: imageData }),
           });
           const uploadResult = await uploadResponse.json();
           if (!uploadResponse.ok) throw new Error(`Unable to upload image: ${uploadResult.message || 'service unavailable'}`);
@@ -119,22 +128,24 @@ document.addEventListener('DOMContentLoaded', () => {
           const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/ai/analyze-image`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-            body: JSON.stringify({ image: reader.result }),
+            body: JSON.stringify({ image: imageData }),
           });
           const result = await response.json();
           if (!response.ok) throw new Error(result.message || 'Image analysis is currently unavailable');
           sessionStorage.setItem('findx-extracted-details', JSON.stringify(result.extractedDetails || {}));
-        } catch (error) {
-          console.error('Image analysis unavailable:', error.message);
-          fileChosen.textContent = error.message.includes('upload')
-            ? error.message
-            : 'Image was uploaded, but AI image analysis is currently unavailable. You can continue by describing the item manually.';
-          fileChosen.style.color = '#B0392E';
-          fileChosen.style.display = 'block';
-        }
-        window.location.href = 'ai-talk.html';
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Lost photo processing failed:', error.message);
+        fileChosen.textContent = error.message.includes('upload') ? error.message : 'Image was uploaded, but AI image analysis is currently unavailable. You can continue by describing the item manually.';
+        fileChosen.style.color = '#B0392E';
+        fileChosen.style.display = 'block';
+        if (error.message.includes('uploaded')) sessionStorage.setItem('findx-vision-warning', fileChosen.textContent);
+        if (!sessionStorage.getItem('findx-original-image')) sessionStorage.removeItem('findx-search-mode');
+        isProcessingPhoto = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Continue';
+        return;
+      }
+      window.location.href = 'ai-talk.html';
       sessionStorage.removeItem('findx-item-name');
       sessionStorage.removeItem('findx-item-description');
       return;
