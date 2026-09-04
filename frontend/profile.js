@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const nameInput = document.getElementById('profile-name');
   const usernameInput = document.getElementById('profile-username');
   const emailInput = document.getElementById('profile-email');
@@ -27,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     el.classList.add('is-visible');
   }
 
-  function loadProfile() {
+  async function loadProfile() {
     const name = sessionStorage.getItem('findx-user-name') || '';
     const username = sessionStorage.getItem('findx-user-username') || '';
     const email = sessionStorage.getItem('findx-user-email') || '';
@@ -35,17 +36,33 @@ document.addEventListener('DOMContentLoaded', () => {
     usernameInput.value = username;
     emailInput.value = email;
     avatarLg.textContent = (name.trim().charAt(0) || 'F').toUpperCase();
+    try {
+      const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/auth/me`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+      if (response.ok) {
+        const result = await response.json();
+        const user = result.user || {};
+        nameInput.value = user.fullName || user.name || name;
+        usernameInput.value = user.username || username;
+        emailInput.value = user.email || email;
+      }
+    } catch (error) { console.warn('Profile load failed:', error.message); }
   }
 
   loadProfile();
 
-  detailsForm.addEventListener('submit', (e) => {
+  detailsForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = nameInput.value.trim();
     const username = usernameInput.value.trim();
     if (!name) return;
 
-    sessionStorage.setItem('findx-user-name', name);
+    try {
+      const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/auth/profile`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: JSON.stringify({ fullName: name, username }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Profile update failed');
+      sessionStorage.setItem('findx-user-name', result.user.fullName || result.user.name || name);
+      sessionStorage.setItem('findx-user-username', result.user.username || username);
+    } catch (error) { showError(detailsSuccess, error.message); return; }
     sessionStorage.setItem('findx-user-username', username);
     avatarLg.textContent = name.charAt(0).toUpperCase();
 
@@ -59,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => detailsSuccess.classList.remove('is-visible'), 4000);
   });
 
-  passwordForm.addEventListener('submit', (e) => {
+  passwordForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     [currentPasswordError, newPasswordError, confirmNewPasswordError].forEach(clearError);
 
@@ -72,8 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showError(currentPasswordError, 'Enter your current password');
       valid = false;
     }
-    if (!next || next.length < 6) {
-      showError(newPasswordError, 'Use at least 6 characters');
+    if (!next || next.length < 8) {
+      showError(newPasswordError, 'Use at least 8 characters');
       valid = false;
     }
     if (confirm !== next) {
@@ -82,9 +99,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (!valid) return;
 
-    // Demo-only: no backend wired up yet to actually change the password.
-    passwordForm.reset();
-    passwordSuccess.classList.add('is-visible');
-    setTimeout(() => passwordSuccess.classList.remove('is-visible'), 4000);
+    try {
+      const response = await fetch(`${window.FINDX_API_BASE || 'http://localhost:5000/api'}/auth/password`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: JSON.stringify({ currentPassword: current, newPassword: next }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Password update failed');
+      passwordForm.reset();
+      passwordSuccess.classList.add('is-visible');
+      setTimeout(() => passwordSuccess.classList.remove('is-visible'), 4000);
+    } catch (error) {
+      showError(newPasswordError, error.message);
+    }
   });
 });

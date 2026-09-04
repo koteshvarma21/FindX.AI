@@ -5,11 +5,12 @@
    link. Click it to reveal "Edit profile" and "Log out".
    ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await window.findxAuthReady; } catch (_error) { return; }
   const mount = document.getElementById('profile-menu');
   if (!mount) return;
 
-  const isAuthed = !!sessionStorage.getItem('findx-auth');
+  const isAuthed = !!localStorage.getItem('token');
 
   if (!isAuthed) {
     mount.innerHTML = '<a href="index.html" class="nav-login">Log in</a>';
@@ -17,14 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const name = sessionStorage.getItem('findx-user-name') || 'Member';
-  const email = sessionStorage.getItem('findx-user-email') || '';
   const initial = (name.trim().charAt(0) || 'F').toUpperCase();
 
   mount.classList.add('profile-menu');
   mount.innerHTML = `
     <button type="button" class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
-      <span class="profile-avatar">${initial}</span>
-      <span class="profile-name">${name}</span>
+      <span class="profile-avatar"></span>
+      <span class="profile-name"></span>
       <svg class="profile-caret" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#55607A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="profile-dropdown" role="menu">
@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
       </button>
     </div>
   `;
+  mount.querySelector('.profile-avatar').textContent = initial;
+  mount.querySelector('.profile-name').textContent = name;
 
   const btn = document.getElementById('profile-btn');
   const logoutBtn = document.getElementById('logout-btn');
@@ -63,10 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   logoutBtn.addEventListener('click', () => {
-    sessionStorage.removeItem('findx-auth');
-    sessionStorage.removeItem('findx-user-email');
-    sessionStorage.removeItem('findx-user-name');
-    sessionStorage.removeItem('findx-user-username');
+    window.clearFindxSession();
     window.location.href = 'index.html';
   });
 });

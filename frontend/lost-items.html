@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
 <script src="auth-guard.js"></script>
 </head>
 <body>
@@ -34,85 +35,7 @@
     <p class="form-sub">Browse what other people nearby have reported missing. Recognize something? Head to Search and let our AI help you report a match.</p>
   </div>
 
-  <div class="item-grid">
-    <div class="item-card">
-      <div class="item-card-img">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#E8630A" stroke-width="1.6"/><circle cx="12" cy="13" r="3.5" stroke="#E8630A" stroke-width="1.6"/></svg>
-      </div>
-      <div class="item-card-body">
-        <span class="item-card-status status-lost">Lost</span>
-        <h3>Black leather wallet</h3>
-        <p>Bifold, brown stitching, has a college ID inside.</p>
-        <p>Last seen near the main library</p>
-        <p class="item-card-meta">Reported 2 days ago</p>
-      </div>
-    </div>
-
-    <div class="item-card">
-      <div class="item-card-img">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#E8630A" stroke-width="1.6"/><circle cx="12" cy="13" r="3.5" stroke="#E8630A" stroke-width="1.6"/></svg>
-      </div>
-      <div class="item-card-body">
-        <span class="item-card-status status-lost">Lost</span>
-        <h3>Silver AirPods case</h3>
-        <p>Has a small dent on the lid, keychain attached.</p>
-        <p>Last seen in the cafeteria</p>
-        <p class="item-card-meta">Reported 3 days ago</p>
-      </div>
-    </div>
-
-    <div class="item-card">
-      <div class="item-card-img">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#E8630A" stroke-width="1.6"/><circle cx="12" cy="13" r="3.5" stroke="#E8630A" stroke-width="1.6"/></svg>
-      </div>
-      <div class="item-card-body">
-        <span class="item-card-status status-lost">Lost</span>
-        <h3>Blue hydro flask bottle</h3>
-        <p>Stickers on the front, dented base.</p>
-        <p>Last seen near the sports ground</p>
-        <p class="item-card-meta">Reported 5 days ago</p>
-      </div>
-    </div>
-
-    <div class="item-card">
-      <div class="item-card-img">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#E8630A" stroke-width="1.6"/><circle cx="12" cy="13" r="3.5" stroke="#E8630A" stroke-width="1.6"/></svg>
-      </div>
-      <div class="item-card-body">
-        <span class="item-card-status status-lost">Lost</span>
-        <h3>Grey hooded jacket</h3>
-        <p>Size M, zip pocket on the left sleeve.</p>
-        <p>Last seen in lecture hall 2</p>
-        <p class="item-card-meta">Reported 1 week ago</p>
-      </div>
-    </div>
-
-    <div class="item-card">
-      <div class="item-card-img">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#E8630A" stroke-width="1.6"/><circle cx="12" cy="13" r="3.5" stroke="#E8630A" stroke-width="1.6"/></svg>
-      </div>
-      <div class="item-card-body">
-        <span class="item-card-status status-lost">Lost</span>
-        <h3>Scientific calculator</h3>
-        <p>Name written in marker on the back.</p>
-        <p>Last seen in the exam hall</p>
-        <p class="item-card-meta">Reported 1 week ago</p>
-      </div>
-    </div>
-
-    <div class="item-card">
-      <div class="item-card-img">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#E8630A" stroke-width="1.6"/><circle cx="12" cy="13" r="3.5" stroke="#E8630A" stroke-width="1.6"/></svg>
-      </div>
-      <div class="item-card-body">
-        <span class="item-card-status status-lost">Lost</span>
-        <h3>Set of keys with a red keychain</h3>
-        <p>Three keys and a small bike lock key.</p>
-        <p>Last seen near the parking lot</p>
-        <p class="item-card-meta">Reported 2 weeks ago</p>
-      </div>
-    </div>
-  </div>
+  <div class="item-grid" id="lost-items-grid"></div>
 </main>
 
 <footer class="site-footer">
@@ -170,5 +93,6 @@
 </footer>
 
 <script src="profile-menu.js"></script>
+<script src="lost-items.js"></script>
 </body>
 </html>

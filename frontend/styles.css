@@ -357,6 +357,91 @@ h1 em{
   }
 }
 
+.item-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 28px;
+}
+
+.item-card{
+  background: var(--paper-raised);
+  border: 1.5px solid var(--hairline);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+}
+
+.item-card-img{
+  height: 126px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(232,99,10,0.08);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.item-card-img svg{
+  width: 48px;
+  height: 48px;
+}
+
+.item-card-img img, .match-images img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.match-images{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-height: 130px;
+}
+
+.match-images > div{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(232,99,10,0.08);
+  color: var(--ink-soft);
+}
+
+.item-card-body{
+  padding: 20px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.item-card-status{
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-lost{
+  background: rgba(232,99,10,0.12);
+  color: var(--flare-dark);
+}
+
+.status-found{
+  background: rgba(47,111,98,0.12);
+  color: var(--moss);
+}
+
+.item-card-body h3{ margin: 0; font-size: 1.2rem; }
+.item-card-body p{ margin: 0; color: var(--ink-soft); line-height: 1.55; }
+.item-card-meta{ font-size: 0.82rem; color: var(--ink-soft); }
+
 /* Page 1 — intake form */
 .form-main{
   max-width: 620px;

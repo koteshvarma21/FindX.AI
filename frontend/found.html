@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
 <script src="auth-guard.js"></script>
 </head>
 <body>
@@ -64,6 +65,8 @@
       <div class="field">
         <label for="found-location">Found location</label>
         <input type="text" id="found-location" name="found-location" placeholder="e.g. Near the library, Sreenidhi Institute of Science and Technology" required>
+        <button type="button" class="btn-secondary" id="use-found-location-btn">Use current location</button>
+        <small id="found-location-status"></small>
       </div>
 
       <div class="field">

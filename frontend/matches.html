@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FindX.AI — AI item description assistant</title>
+<title>FindX.AI — Match results</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -21,7 +21,7 @@
   </div>
   <nav>
     <a href="home.html">Home</a>
-    <a href="search.html" class="active">Search</a>
+    <a href="search.html">Search</a>
     <a href="found.html">Found</a>
     <a href="lost-items.html">Lost Items</a>
     <a href="found-items.html">Found Items</a>
@@ -29,50 +29,13 @@
   </nav>
 </header>
 
-<main class="form-main">
-
-  <ol class="stepper" aria-label="Search progress">
-    <li><span class="stepper-dot">1</span><span class="stepper-label">Tell us</span></li>
-    <li class="is-current"><span class="stepper-dot">2</span><span class="stepper-label">Describe it</span></li>
-    <li><span class="stepper-dot">3</span><span class="stepper-label">Last seen</span></li>
-    <li><span class="stepper-dot">4</span><span class="stepper-label">Matches</span></li>
-  </ol>
-
-  <h1 class="form-title" style="text-align:center">AI item description assistant</h1>
-  <p class="form-sub" style="text-align:center;margin-left:auto;margin-right:auto">A few quick questions and we'll build a picture of your item together.</p>
-
-  <div class="chat-shell">
-    <div class="chat-thread" id="chat-thread"></div>
-
-    <div class="chip-row" id="chip-row"></div>
-
-    <div class="viz-card" id="viz-card">
-      <span class="viz-icon">
-        <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><rect x="3" y="6" width="18" height="14" rx="2" stroke="#E8630A" stroke-width="1.8"/><circle cx="12" cy="13" r="3.5" stroke="#E8630A" stroke-width="1.8"/><path d="M8 6l1.2-2h5.6L16 6" stroke="#E8630A" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </span>
-      <h4>Here's what we've pictured</h4>
-      <p id="viz-summary">—</p>
-    </div>
-
-    <div class="match-row" id="match-row">
-      <label for="accuracy-range">Accuracy: <output id="accuracy-value">0%</output></label>
-      <input type="range" id="accuracy-range" min="0" max="100" value="0">
-      <button type="button" class="match-btn" id="accuracy-submit">Use this image</button>
-    </div>
-
-    <div class="continue-row" id="continue-row">
-      <button type="button" class="btn-secondary" id="skip-image-btn">Skip image &amp; continue</button>
-      <button type="button" class="btn-primary" id="continue-btn">Continue to last seen &amp; location</button>
-    </div>
-
-    <div class="chat-input-row">
-      <input type="text" id="chat-input" placeholder="Type your answer…" autocomplete="off">
-      <button type="button" class="chat-send" id="chat-send" aria-label="Send">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M4 12L20 4L13 20L11 13L4 12Z" stroke="#F1EDE4" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      </button>
-    </div>
+<main class="browse-main">
+  <div class="browse-header">
+    <h1 class="form-title">AI match results</h1>
+    <p class="form-sub">Strongest possible matches for your lost item.</p>
   </div>
 
+  <div id="matches-grid" class="item-grid"></div>
 </main>
 
 <footer class="site-footer">
@@ -98,7 +61,6 @@
         <a href="found-items.html">Found Items</a>
         <a href="profile.html">My Profile</a>
       </div>
-
       <div class="footer-col">
         <h4>Resources</h4>
         <a href="#">How It Works</a>
@@ -106,7 +68,6 @@
         <a href="#">Privacy Policy</a>
         <a href="#">Terms &amp; Conditions</a>
       </div>
-
       <div class="footer-col">
         <h4>Connect With Us</h4>
         <a href="#">Instagram</a>
@@ -114,7 +75,6 @@
         <a href="#">Discord</a>
         <a href="#">WhatsApp</a>
       </div>
-
       <div class="footer-col">
         <h4>Contact Us</h4>
         <a href="mailto:support@findx.ai">support@findx.ai</a>
@@ -129,7 +89,7 @@
   </div>
 </footer>
 
-<script src="ai-talk.js"></script>
 <script src="profile-menu.js"></script>
+<script src="matches.js"></script>
 </body>
 </html>
